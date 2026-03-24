@@ -84,18 +84,3 @@ PWPS（Public Welfare Photography Platform）是一个基于 Spring Boot + Vue 3
 3. **内容审核**: 作品和活动需要管理员审核后才能公开显示
 4. **图片管理**: 支持图片上传、存储、清理功能
 5. **响应式设计**: 前端页面适配不同屏幕尺寸
-
-## 快速开始
-
-详细部署指南请参考 `src/main/ReadMe.md`，API 接口文档请参考 `src/ReadMe/ReadMe_For_API.md`。
-
-### 环境要求
-- JDK 17+
-- MySQL 8.0+
-- Maven 3.6+
-
-### 核心依赖
-- Spring Boot Web MVC
-- MyBatis Spring Boot Starter
-- MySQL Connector/J
-- Lombok
