@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 - 公益摄影交流平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: linear-gradient(135deg,#0f172a,#1f2937); color:#fff; }
+    .top { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; }
+    .logo { font-weight:800; cursor:pointer; }
+    .wrap { max-width: 420px; margin: 40px auto; padding: 24px; background: rgba(255,255,255,.06); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    label { display:block; font-size: 14px; margin: 14px 0; }
+    input { width:100%; padding: 10px 12px; border-radius: 10px; border: none; margin-top: 6px; }
+    button { width:100%; padding: 10px 12px; border-radius: 10px; border:none; background:#3b82f6; color:#fff; font-weight:700; cursor:pointer; margin-top: 10px; }
+    .row { display:flex; gap:12px; margin-top: 12px; }
+    .btn2 { background:#111827; border:1px solid rgba(255,255,255,.18); }
+    a { color:#93c5fd; }
+    .hint { opacity:.85; font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="logo" @click="goMain">公益摄影交流平台</div>
+    <div style="opacity:.85">游客可直接进入主页</div>
+  </div>
+
+  <div class="wrap">
+    <h2 style="margin:0 0 8px 0;">登录</h2>
+    <div class="hint">接口：POST /api/user/login</div>
+    <label>
+      账号（loginname）
+      <input v-model="form.loginname" maxlength="20" placeholder="请输入账号" />
+    </label>
+    <label>
+      密码（password）
+      <input v-model="form.password" type="password" placeholder="请输入密码" />
+    </label>
+    <button @click="login">登录</button>
+
+    <div class="row">
+      <button class="btn2" @click="goRegister">去注册</button>
+      <button class="btn2" @click="goMain">以游客进入主页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, reactive } = Vue;
+
+createApp({
+  setup() {
+    const form = reactive({ loginname: '', password: '' });
+
+    const login = async () => {
+      try {
+        const resp = await axios.post('/api/user/login', {
+          loginname: form.loginname,
+          password: form.password
+        });
+        const data = resp.data;
+        if (data && data.success) {
+          localStorage.setItem('pwps_uid', String(data.uid));
+          localStorage.setItem('pwps_permission', String(data.permission));
+          localStorage.setItem('pwps_loginname', form.loginname);
+          alert('登录成功，uid=' + data.uid);
+          window.location.href = '/main';
+        } else {
+          alert('登录失败：账号或密码错误');
+        }
+      } catch (e) {
+        alert('请求失败：' + e);
+      }
+    };
+
+    const goRegister = () => window.location.href = '/user/login/register';
+    const goMain = () => window.location.href = '/main';
+
+    return { form, login, goRegister, goMain };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
+

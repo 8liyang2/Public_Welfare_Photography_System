@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.pwps.mapper.UserMapper">
+
+    <resultMap id="UserResultMap" type="com.example.pwps.entity.User">
+        <id     column="uid"                property="uid"/>
+        <result column="loginname"         property="loginname"/>
+        <result column="password"          property="password"/>
+        <result column="username"          property="username"/>
+        <result column="email"             property="email"/>
+        <result column="avatar"            property="avatar"/>
+        <result column="personal_profile"  property="personalProfile"/>
+        <result column="permission"        property="permission"/>
+        <result column="birthday"          property="birthday"/>
+        <result column="activity_created"  property="activityCreated"/>
+        <result column="uphoto_created"    property="uphotoCreated"/>
+        <result column="point"             property="point"/>
+        <result column="created_at"        property="createdAt"/>
+        <result column="updated_at"        property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByLoginname" resultMap="UserResultMap">
+        SELECT * FROM `user` WHERE loginname = #{loginname}
+    </select>
+
+    <select id="findByUid" resultMap="UserResultMap">
+        SELECT * FROM `user` WHERE uid = #{uid}
+    </select>
+
+    <insert id="insert" parameterType="com.example.pwps.entity.User" useGeneratedKeys="true" keyProperty="uid">
+        INSERT INTO `user` (
+            loginname, password, username, email, avatar, personal_profile,
+            permission, birthday, activity_created, uphoto_created, point
+        ) VALUES (
+            #{loginname}, #{password}, #{username}, #{email}, #{avatar}, #{personalProfile},
+            #{permission}, #{birthday}, #{activityCreated}, #{uphotoCreated}, #{point}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.example.pwps.entity.User">
+        UPDATE `user`
+        SET
+            loginname = #{loginname},
+            password = #{password},
+            username = #{username},
+            email = #{email},
+            avatar = #{avatar},
+            personal_profile = #{personalProfile},
+            permission = #{permission},
+            birthday = #{birthday},
+            activity_created = #{activityCreated},
+            uphoto_created = #{uphotoCreated},
+            point = #{point}
+        WHERE uid = #{uid}
+    </update>
+
+    <delete id="deleteByUid">
+        DELETE FROM `user` WHERE uid = #{uid}
+    </delete>
+
+    <update id="updatePassword">
+        UPDATE `user` SET password = #{password} WHERE uid = #{uid}
+    </update>
+
+    <select id="findAll" resultMap="UserResultMap">
+        SELECT * FROM `user` ORDER BY uid ASC
+    </select>
+
+    <select id="findPointByUid" resultType="java.lang.Integer">
+        SELECT point FROM `user` WHERE uid = #{uid}
+    </select>
+
+    <update id="updatePoint">
+        UPDATE `user` SET point = point + #{pointChange} WHERE uid = #{uid}
+    </update>
+
+</mapper>
+

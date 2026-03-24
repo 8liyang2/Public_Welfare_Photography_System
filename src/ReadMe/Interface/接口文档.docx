@@ -1,0 +1,1222 @@
+分类相关接口
+
+一、用户管理模块接口
+
+1、用户注册接口
+功能：
+用于普通用户的注册功能，在注册的同时会将其权限等级（permission）修改为1。注册完成后将跳转至登录界面。
+用户注册完成后，其email（邮箱）、username（昵称）、avatar（头像）、personal_profile（个人简介）、birthday（生日）、activity_created（活动创建数）、uphoto_created（个人摄影作品上传数）、
+point（积分）均为默认值或0。
+注意：当用户完成注册后，同时会检查其
+  基本信息：
+Path:/api/user/register
+        Method:POST
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+loginname	string	是	用户名	不能为空，长度不超过20字符
+password1	string	是	密码（重复）	用于检测两次密码输入是否相同，若均相同，通过检测并清除其参数
+password	string	是	密码	必须加密存储，使用MD5算法
+avatar	string	否	头像	可选，URL格式，若没有则随机为系统默认头像
+
+  返回数据：
+
+返回元素	返回类型	必须程度	备注	其他信息
+user_id	int	是	用户ID	新注册用户的唯一标识
+success	boolean	是	操作结果	true表示成功，false表示失败
+loginname_exists	int	是	账户名重复	检查其与数据库中的账户是否重复。1为重复，0为不重复。通过检查需为0
+password_exists	int	是	密码重复	检查输入的密码是否重复。1为重复，0为不重复。通过检查需为1
+
+
+
+
+2、用户登录接口
+  功能：当用户进行登录后，若loginname和password均为同一用户的数据，则通过登录，进入主界面。具备基本权限。
+
+基本信息：
+Path:/api/user/login
+        Method:POST
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+loginname	string	是	用户名	不能为空，长度不超过20字符
+password	string	是	密码	必须加密存储，使用MD5算法
+
+返回数据：
+
+返回元素	返回类型	必须程度	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+permission	int	是	权限等级	2或1或0，决定用户的级别。2为游客、1为普通用户、0为管理员。所有用户在新创建账户时默认该值为1
+success	boolean	是	操作结果	true表示成功，false表示失败
+
+
+
+3、用户信息修改接口
+  功能：
+普通用户在进行修改个人简介保存时进行。数据库完成保存后将会跳转至个人主页主界面。
+
+基本信息：
+Path:/api/user/update
+        Method:PUT
+
+  请求参数：
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+loginname	string	是	用户名	不能为空，长度不超过20字符
+username	string	否	用户名称	可空，默认名称为”用户”+uid（如：用户10019），可修改
+avatar	string	否	头像	可选，URL格式，若没有则随机为系统默认头像
+email	string	否	邮箱	现阶段只做存储功能
+personal_ profile	string	否	个人简介	可选，长度不超过100字符
+permission	int	是	权限等级	2或1或0，决定用户的级别。2为游客、1为普通用户、0为管理员。所有用户在新创建账户时默认该值为1
+birthday	date	否	生日	点击时出现日历，勾选对应日期即可确认
+
+
+4、用户注销账号接口
+  功能：普通注销账户时进行，管理员无权使用此接口对管理员账户进行注销操作。
+  基本信息：
+Path:/api/user/delete
+        Method:DELETE
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+permission	int	是	权限等级	2或1或0，决定用户的级别。2为游客、1为普通用户、0为管理员
+
+  返回数据：
+
+返回元素	返回类型	必须程度	备注	其他信息
+updated_at	datetime	是	更新时间	格式：YYYY-MM-DD HH:mm:ss
+success	boolean	是	操作结果	true表示成功，false表示失败
+
+
+二、活动管理模块接口
+1、活动创建接口
+  功能：在活动创建页内，通过输入数据以创建及存储摄影活动及相关作品。数据库存储完成后将刷新页面，反之则要求重新编写。
+        创建完成后，activity_id、activity_category、activity_status将只能由管理员进行修改。该活动的审核情况将同步设置为“未审核”（activity_review_status=1)、点赞数同步设置为0（like=0）、收藏数同步设置为0（favorite=0),审核若未通过则会同步将activity_status=0。
+  基本信息：
+Path:/api/user/activity/create
+        Method:POST
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+activity_name	string	是	活动名称	不能为空，长度不超过50字符
+activity_description	string	否	活动描述	可选，长度不超过200字符
+activity_category	int	是	分类标签	必须为有效分类，1为“官方摄影征集活动”、2为“个人组织摄影活动”、3为“相册集”。其中，非管理员用户不能勾选1，完成创建后，除管理员外任何人无法修改
+activity_location	string	否	地点	可选，如城市、地点名称
+activity_time	date	否	时间	可选，如活动日期、时间范围
+若activity_category不为3时必须填写。
+activity_status	int	是	活动状态	0为“仅自己观看”（当activity_category=3时允许填写，此时仅自己和管理员可见）、1为“公开征集”（当activity_category=1或2时可选，此时任何已登录用户都可以自由上传作品至其活动内）、2为“仅读”（仅有管理员和活动创建者可进行相关操作）
+activity_cover_image	string	否	活动封面图	可选，URL格式
+uid	BIGINT UNSIGNED	是	账户id码	检查用户是否存在
+permission	int	是	权限等级	2或1或0，决定用户的级别。2为游客、1为普通用户、0为管理员。所有用户在新创建账户时默认该值为1
+pointset	int	是	积分变更请求	创建活动需要该用户积分数达到100，若不满足则无法通过，故该值将被设置为“-100”
+
+返回数据：
+
+返回元素	返回类型	必须程度	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	设置为自增，默认从10001开始，步长为1
+created_at	datetime	是	创建时间	格式：YYYY-MM-DD HH:mm:ss
+success	boolean	是	操作结果	true表示成功，false表示失败
+activity_picture_id	BIGINT UNSIGNED	是	图片id	对调用的图片从10000开始进行自增编码，步长为1
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+
+2、活动编辑接口
+  功能：
+在活动编辑页内，通过修改部分数据以完成对相关作品的编辑。数据库存储完成后将刷新页面，反之则要求重新编写。
+创建完成后，将审核情况刷新为“未审核”，并由管理员在后端进行统一审核。
+    请注意：activity_id、activity_category、activity_status只能由管理员进行修改。
+
+  基本信息：
+Path:/api/user/activity/edit
+        Method:POST
+
+  请求参数：
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	需要被修改的活动的id号
+activity_name	string	是	活动名称	不能为空，长度不超过50字符
+activity_description	string	否	活动描述	可选，长度不超过200字符
+activity_category	int	是	分类标签	必须为有效分类，1为“官方摄影征集活动”、2为“个人组织摄影活动”、3为“相册集”。其中，非管理员用户不能勾选1。完成创建后，除管理员外任何人无法修改
+activity_time	date	否	时间	可选，如活动日期、时间范围
+若activity_category不为3时必须填写。
+activity_status	int	是	活动状态	1为“公开征集”（当activity_category=1或2时可选，此时任何已登录用户都可以自由上传作品至其活动内）、2为“仅读”（仅有管理员和活动创建者可进行相关操作）、3为“条件加入”（由管理员和活动创建者进行选择，对试图加入活动的用户及作品进行审核，审核通过后加入）
+activity_cover_image	string	是	活动封面图	上传的图片本体
+pointset	int	是	积分变更请求	修改活动需要该用户积分数达到5，若不满足则无法通过，故该值将被设置为“-5”
+
+
+返回数据：
+
+返回元素	返回类型	必须程度	备注	其他信息
+created_at	datetime	是	创建时间	格式：YYYY-MM-DD HH:mm:ss
+success	boolean	是	操作结果	true表示成功，false表示失败
+activity_id	BIGINT UNSIGNED	是	活动id码	测试时便于检测是否正确执行
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+
+3、活动删除接口
+  功能：
+在活动编辑页内，根据活动从属情况对活动进行删除。
+若activity_category=1或2时，仅有管理员可对该活动进行删除操作。
+若activity_category=3时，除管理员外，活动创建者也可进行删除操作。
+  基本信息：
+Path:/api/user/activity/delete
+        Method:DELETE
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	
+uid	BIGINT UNSIGNED	是	账户id码	
+pointset	int	是	积分变更请求	修改活动需要该用户积分数达到300，若不满足则无法通过，故该值将被设置为“-300”
+
+返回数据：
+
+返回元素	返回类型	必须程度	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	测试时便于检测是否正确执行
+deleted_at	datetime	是	删除时间	格式：YYYY-MM-DD HH:mm:ss
+success	boolean	是	操作结果	true表示成功，false表示失败
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+
+4、个人活动查询接口
+功能：
+      当个人在个人主页内查询自己的创建活动时，对其创建的活动进行遍历。
+      点击遍历出来的活动即可进入详情页并阅读相关作品
+  基本信息：
+Path:/api/user/activity/query
+        Method:GET
+
+  请求参数：
+        
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	
+ask_uid	BIGINT UNSIGNED	是	将要访问的用户的id码	
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	设置为自增，默认从10001开始，步长为1
+activity_cover_image_URL	string	是	活动封面图	存入数据库中的图片名
+activity_name	string	是	活动名称	不能为空，长度不超过50字符
+activity_cover_image	string	是	活动封面图	上传的图片本体
+
+5、管理员审核查询活动接口
+
+功能：
+在活动编辑完成后，将由管理员在后端进行统一审核。审核时将遍历所有activity_review_status=1的活动。
+  基本信息：
+Path:/api/admin/activity/review
+        Method:GET
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+permission	int	是	权限等级	2或1或0，决定用户的级别。2为游客、1为普通用户、0为管理员。所有用户在新创建账户时默认该值为1
+
+
+返回参数：
+
+
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	根据id值从小往大排列
+activity_cover_image_URL	string	是	活动封面图	存入数据库中的图片名
+activity_name	string	是	活动名称	不能为空，长度不超过50字符
+activity_category	int	是	分类标签	必须为有效分类，1为“官方摄影征集活动”、2为“个人组织摄影活动”、3为“相册集”。其中，非管理员用户不能勾选1，完成创建后，除管理员外任何人无法修改
+activity_status	int	是	活动状态	1为“公开征集”、2为“仅读”、3为“条件加入”
+activity_description	string	否	活动描述	可选，长度不超过200字符
+activity_cover_image			图片本体	可直接阅览的图片本体
+
+
+6、常规查询活动接口
+功能：
+与主页面的“活动”栏发起交互后，生成用户正在查找的活动类型。默认搜索为正在进行的活动。
+可根据活动下方的各类选项进行优先度排序（如：时间区间、作品数量）。
+默认为自最新活动向下排序，每次最多显示20个活动。显示下一批活动需要自行翻面。
+  基本信息：
+Path:/api/main/activity/search
+        Method:GET
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	
+created_at	datetime	是	请求发起时刻	格式：YYYY-MM-DD HH:mm:ss
+该参数用于检索正在进行的活动。
+search_require_last	datetime	否	查询要求（最晚时间区间）	格式：YYYY-MM-DD
+需要检索活动开始时间不晚于此时间的活动。
+若为null，则最晚时间不限。
+search_require_start	datetime	否	查询要求（最早时间区间）	格式：YYYY-MM-DD
+需要检索活动结束时间不早于此时间的活动。
+若为null,则最早时间不限。
+search_uphoto_upload	int	否	查询要求（作品量）	根据内置的作品数量从大到小进行排序
+
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	
+activity_cover_image	string	是	活动封面图	URL格式
+activity_name	string	是	活动名称	不能为空，长度不超过50字符
+activity_status	int	是	活动状态	1为“公开征集”、2为“仅读”、3为“条件加入”
+
+7、活动点赞接口
+功能：
+在任意活动详情页内，与点赞键发起交互后，根据点赞是否变红或变黑决定用户是否点赞或取消点赞。当完成点赞后，上传至数据库进行处理（决定活动的点赞数是否+1）。
+  基本信息：
+Path:/api/main/activity/#activity_id/like
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	
+activity_id	BIGINT UNSIGNED	是	活动id码	根据id值从小往大排列
+like_change	int	是	点赞或取消点赞	根据点赞图标的变化决定int值的变化，点赞效果触发时，like_change=1，数据库点赞数+1；点赞效果被取消时，like_change=0，数据库点赞数-1。
+为防止出现点赞数小于0的情况，需要在检测到点赞数等于0时禁止用户取消点赞。
+
+返回参数：
+
+
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	根据id值从小往大排列
+success	boolean	是	操作结果	true表示成功，false表示失败
+uid	BIGINT UNSIGNED	是	账户id码	
+
+8、活动评论接口
+功能：
+在任意活动详情页内，与评论键发起交互后，根据评论的内容进行发表。当完成评论后，上传至数据库进行处理（决定活动的评论数是否+1，是否提供相关评论）。
+  基本信息：
+Path:/api/main/activity/#activity_id/comment
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	
+activity_id	BIGINT UNSIGNED	是	活动id码	根据id值从小往大排列
+activity_comment_detail	string	是	评论内容	长度上限为1200。
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	根据id值从小往大排列
+success	boolean	是	操作结果	true表示成功，false表示失败
+uid	BIGINT UNSIGNED	是	账户id码	
+
+9、活动详情页接口
+
+功能：
+在搜索页面内与任意活动按钮交互后，即可进入活动详情页。
+请注意：对于未完成审核的活动，将不会被非创建者开放。
+  基本信息：
+Path:/api/main/activity/#activity_id/get
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	
+activity_id	BIGINT UNSIGNED	是	活动id码	根据id值从小往大排列
+permission	int	是	权限等级	2或1或0，决定用户的级别。2为游客、1为普通用户、0为管理员。所有用户在新创建账户时默认该值为1
+
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	根据id值从小往大排列
+success	boolean	是	操作结果	true表示成功，false表示失败
+uid	BIGINT UNSIGNED	是	账户id码	
+activity_name	string	是	活动名称	不能为空，长度不超过50字符
+activity_description	string	否	活动描述	可选，长度不超过200字符
+activity_category	int	是	分类标签	必须为有效分类，1为“官方摄影征集活动”、2为“个人组织摄影活动”、3为“相册集”。其中，非管理员用户不能勾选1，完成创建后，除管理员外任何人无法修改
+activity_location	string	否	地点	可选，如城市、地点名称
+activity_time	date	否	时间	可选，如活动日期、时间范围
+若activity_category不为3时必须填写。
+activity_status	int	是	活动状态	0为“仅自己观看”（当activity_category=3时允许填写，此时仅自己和管理员可见）、1为“公开征集”（当activity_category=1或2时可选，此时任何已登录用户都可以自由上传作品至其活动内）、2为“仅读”（仅有管理员和活动创建者可进行相关操作）
+activity_cover_image	string	否	活动封面图	可选，URL格式
+
+
+10、活动审核通否接口
+
+功能：
+管理员在后端进行统一审核时。根据情况决定是否通过该活动的审核。
+  基本信息：
+Path:/api/admin/activity/review/
+        Method:GET
+
+  请求参数：
+参数名称	参数类型	是否必须	备注	其他信息
+activity_id	BIGINT UNSIGNED	是	活动id码	正在被审核的活动id
+uid	BIGINT UNSIGNED	是	账户id码	必须为管理员账户
+permission	int	是	权限等级	2或1或0，决定用户的级别。2为游客、1为普通用户、0为管理员。所有用户在新创建账户时默认该值为1
+activity_review_status	int	是	审核情况	审核不通过为“0”，未审核为“1”，审核通过为“2”
+
+
+三、作品上传与展示模块接口
+1、用户上传摄影作品接口
+功能：
+      当个人在“作品投稿”栏中进行投稿单个图片作品时，可使用此接口。
+      创建后，将会被管理员进行审核。通过审核的作品将会同时根据标签种类分存至各类分标签表内。
+      其中，在创建完成后，将为其专门开辟一个分表用于存储这个摄影作品的点赞和评论情况。
+关于uphoto_label：1为“记录”、2为“艺术”、3为“商业”、4为“人像”、5为“天文”、6为“航拍”、7为“城景”、8为“随手拍”、9为“旅拍”、0为“其他”。同一作品最多可打三个标签，超出则不允许通过。
+  基本信息：
+Path:/api/user/uphoto/upload
+        Method:POST
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+uphoto_description	string	否	作品描述	可选，长度不超过200字符
+activity_id	BIGINT UNSIGNED	是	活动id码	需要自行输入，随后会将该图片加入该活动中。
+同一作品最多只能加入三个活动内，活动间会用“,”分割
+uphoto_status	int	是	活动状态	1为“公开”、2为“仅自己可见”
+uphoto_label_0	int	是	作品标签	其他（1为是，0为否，下同）
+uphoto_label_1	int	是	作品标签	记录
+uphoto_label_2	int	是	作品标签	艺术
+uphoto_label_3	int	是	作品标签	商业
+uphoto_label_4	int	是	作品标签	人像
+uphoto_label_5	int	是	作品标签	天文
+uphoto_label_6	int	是	作品标签	航拍
+uphoto_label_7	int	是	作品标签	城景
+uphoto_label_8	int	是	作品标签	随手拍
+uphoto_label_9	int	是	作品标签	旅拍
+pointset	int	是	积分变更请求	创建作品需要该用户积分数达到10，若不满足则无法通过，故该值将被设置为“-10”
+
+
+返回数据：
+
+
+返回元素	返回类型	必须程度	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增
+created_at	datetime	是	创建时间	格式：YYYY-MM-DD
+status	int	是	作品状态	默认值为1（待审）
+success	boolean	是	操作结果	true表示成功，false表示失败
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+
+2、作品状态管理接口
+功能：
+      当个人在个人主页内的“作品管理”栏中进行提交单个图片作品的修改请求时，可使用此接口。
+      修改后，将会同步被管理员进行审核。
+      注：上传的图片、活动和标签不可更改。
+  基本信息：
+Path:/api/user/uphoto/manage
+        Method:POST
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+uphoto_description	string	否	作品描述	可选，长度不超过200字符
+activity_id	BIGINT UNSIGNED	是	活动id码	需要自行输入，随后会将该图片加入该活动中。
+同一作品最多只能加入三个活动内
+uphoto_status	int	是	隐私度	1为“公开”、2为“仅自己可见”
+uphoto_label_0	int	是	作品标签	其他（1为是，0为否，下同）
+uphoto_label_1	int	是	作品标签	记录
+uphoto_label_2	int	是	作品标签	艺术
+uphoto_label_3	int	是	作品标签	商业
+uphoto_label_4	int	是	作品标签	人像
+uphoto_label_5	int	是	作品标签	天文
+uphoto_label_6	int	是	作品标签	航拍
+uphoto_label_7	int	是	作品标签	城景
+uphoto_label_8	int	是	作品标签	随手拍
+uphoto_label_9	int	是	作品标签	旅拍
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识
+pointset	int	是	积分变更请求	修改作品需要该用户积分数达到5，若不满足则无法通过，故该值将被设置为“-5”
+
+返回数据：
+
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+success	boolean	是	操作结果	true表示成功，false表示失败
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+3、个人作品查询接口
+功能：
+      当用户在任意个人主页（可通过点击他人头像）内的“作品列表”栏中进行提交单个图片作品的修改请求时，可使用此接口。
+该接口会遍历个人发表的图库集。
+      修改后，将会同步被管理员进行审核。
+      注：上传的图片、活动和标签不可更改。
+  基本信息：
+Path:/api/user/uphoto/search
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	自身账户id码	设置为自增，默认从10001开始，步长为1
+ask_uid	BIGINT UNSIGNED	是	将要访问的用户的id码	若这两个参数相同，则会显示“仅自己”观看的作品，反之则只显示公开图库。
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+
+
+4、个人作品删除接口
+功能：
+      当用户在个人主页内的“作品列表”栏中进行提交删除此作品请求时，可使用此接口。
+  基本信息：
+Path:/api/user/uphoto/delete
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增。
+需要检测将被删除的作品是否是该作者上传。若是，则通过，反之则不通过。
+pointset	int	是	积分变更请求	删除作品需要该用户积分数达到10，若不满足则无法通过，故该值将被设置为“-10”
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增。
+success	boolean	是	操作结果	true表示成功，false表示失败
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+
+5、个人作品泛搜索接口
+功能：
+      当用户在与主页的“广场”栏发起交互时，将自动调用此接口并显示搜索结果。
+      搜索结果将会以每二十个作品为一页。
+  基本信息：
+Path:/api/main/uphoto/search
+        Method:POST
+
+请求参数：
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+main_uphoto_search_1	int	是	搜索方式1	1为“显示最近上传的作品”、2为“显示点赞最多的作品
+main_uphoto_search_2	int	是	搜索方式2	根据标签进行搜索，只能同时搜索一个标签。
+main_uphoto_search_3_earlydate	date	否	允许的最早日期	根据作品的出现日期进行排序，若搜索出的作品早于该时间则不会读取该作品。若无数据则默认没有最早日期
+main_uphoto_search_3_latedate	date	否	允许的最晚日期	根据作品的出现日期进行排序，若搜索出的作品晚于该时间则不会读取该作品。若无数据则默认没有最晚日期
+
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	作品本体文件
+uphoto_title	string	是	作品标题	长度不超过50字符
+
+
+6、个人作品详情页接口
+功能：
+      当用户在“广场”内点击单个作品时，将进入该作品的详情页。
+  基本信息：
+Path:/api/user/uphoto/#uphoto_id/get
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增。
+
+返回数据：
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+uphoto_description	string	否	作品描述	可选，长度不超过200字符
+activity_id	BIGINT UNSIGNED	是	活动id码	同一作品最多只能加入三个活动内
+uphoto_status	int	是	隐私度	1为“公开”、2为“仅自己可见”
+uphoto_label_0	int	是	作品标签	其他（1为是，0为否，下同）
+uphoto_label_1	int	是	作品标签	记录
+uphoto_label_2	int	是	作品标签	艺术
+uphoto_label_3	int	是	作品标签	商业
+uphoto_label_4	int	是	作品标签	人像
+uphoto_label_5	int	是	作品标签	天文
+uphoto_label_6	int	是	作品标签	航拍
+uphoto_label_7	int	是	作品标签	城景
+uphoto_label_8	int	是	作品标签	随手拍
+uphoto_label_9	int	是	作品标签	旅拍
+
+7、作品点赞接口
+
+功能：
+用户在任意作品详情页内，与点赞键发起交互后，根据点赞图标是否变红或变黑决定用户是否点赞或取消点赞。当完成点赞后，上传至数据库进行处理（决定该作品的点赞数是否 +1 或 -1）。
+注意：
+
+作者本人不能为自己的作品进行点赞。
+当检测到作品当前点赞数等于 0 时，禁止取消点赞，防止点赞数出现小于 0 的情况。
+基本信息：
+
+Path: /api/main/uphoto/#uphoto_id/like
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户 id 码	
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	从 1 开始递增
+like_change	int	是	点赞或取消点赞	点赞时 like_change = 1；取消点赞时 like_change = 0
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	
+uid	BIGINT UNSIGNED	是	账户 id 码	
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+8、作品评论接口
+
+功能：
+用户在任意作品详情页内，与评论区域发起交互后，根据输入的评论内容进行发表。当完成评论后，上传至数据库进行处理（决定该作品的评论数是否 +1，并保存评论内容）。
+注意：
+
+每位用户在同一作品下最多只能进行一次评论（不提供楼中楼回复）。
+若用户删除评论，则该用户在该作品下的记录中 uphoto_comment 变为 0，若该记录同时 uphoto_like = 0，则删除该行记录。
+基本信息：
+
+Path: /api/main/uphoto/#uphoto_id/comment
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户 id 码	
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	从 1 开始递增
+uphoto_comment_detail	string	是	评论内容	长度上限为 1200
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	
+uid	BIGINT UNSIGNED	是	账户 id 码	
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+9、管理员作品审核查询接口
+
+功能：
+管理员在后台“作品审核管理”中，统一查看所有待审核的作品。系统会遍历所有 uphoto_review_status = 1（未审核）的作品。
+
+基本信息：
+
+Path: /api/admin/uphoto/review
+Method: GET
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员账户
+permission	int	是	权限等级	必须为 0（管理员）
+返回参数（列表）：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	
+uid	BIGINT UNSIGNED	是	作者账户 id	
+uphoto	string	是	作品本体/URL	
+uphoto_title	string	是	作品标题	
+uphoto_description	string	否	作品描述	
+uphoto_label_0~9	int	是	作品标签	
+uphoto_status	int	是	隐私度	1 公开，2 仅自己可见
+uphoto_review_status	int	是	审核情况	1 未审核，0 不通过，2 通过
+10、作品审核通否接口
+
+功能：
+管理员在后台“作品审核管理”页面对单个作品进行审核，通过或不通过。
+
+若审核通过：uphoto_review_status = 2，并可根据需要将其分发至相应标签分类。
+若审核不通过：uphoto_review_status = 0，作品不会在公开区域被检索，仅作者在个人主页中可以看到。
+基本信息：
+
+Path: /api/admin/uphoto/review/
+Method: GET（简化处理）
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	被审核作品 ID	
+uid	BIGINT UNSIGNED	是	管理员账户 id	
+permission	int	是	权限等级	必须为 0
+uphoto_review_status	int	是	审核情况	0 或 2
+四、积分接口（补充说明）
+1、积分变更接口（原文已给，这里补充说明）
+
+Path: /api/user/point/#uid
+Method: GET
+功能与请求/返回参数不变，补充规则说明：
+所有涉及积分的业务（创建/修改/删除活动和作品、评论、点赞、封禁等），都应调用此接口或在后端通过相同逻辑变更用户积分。
+若积分变更为负数，则自动将积分置为 0。
+2、积分查询接口
+
+功能：
+用于在前端显示当前用户的积分情况（如个人主页、管理员后台页面右上角“当前积分：point”）。
+
+基本信息：
+
+Path: /api/user/point/#uid/info
+Method: GET
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户 id 码	
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+point	int	是	当前积分	
+success	boolean	是	操作结果	
+五、管理员账号与权限管理模块接口（补充）
+1、账号异常管理接口（封禁用户）
+
+功能：
+管理员在“账号异常管理”页面中，对指定用户进行封禁操作。封禁后会将该用户的权限修改为“游客”（permission = 2），该用户仅能以游客身份浏览，不可上传或修改任何作品/活动。
+
+基本信息：
+
+Path: /api/admin/user/ban
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+ban_uid	BIGINT UNSIGNED	是	被封禁账户 id	
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+ban_uid	BIGINT UNSIGNED	是	被封禁账户 id	
+success	boolean	是	操作结果	
+2、权限修改接口
+
+功能：
+管理员在“权限修改”页面中，对指定用户的权限等级进行变更，可将普通用户提升为管理员，也可以将管理员降低为普通用户。
+
+基本信息：
+
+Path: /api/admin/user/permission
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+target_uid	BIGINT UNSIGNED	是	目标用户 id	
+target_perm	int	是	目标权限等级	0 管理员/1 普通/2 游客
+返回参数：同样返回 target_uid 和 success。
+
+3、评论管理接口
+
+功能：
+管理员在“评论管理”页面中，对任意作品或活动下的评论进行删除操作（用于处理违规评论）。
+
+基本信息：
+
+Path: /api/admin/comment/manage
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+target_type	string	是	评论所属类型	"activity" 或 "uphoto"
+target_id	BIGINT UNSIGNED	是	活动或作品 id	
+target_user_uid	BIGINT UNSIGNED	是	评论发布者 uid	用于定位评论记录
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+success	boolean	是	操作结果	
+六、主页与公共展示接口（补充）
+1、主页信息接口
+
+功能：
+主页 /main 加载时，用于获取：
+
+当前公告列表
+最新 9 张通过审核的图片（用于轮播）
+最新 3 个非官方活动（activity_category = 2，已通过审核）
+最新 3 个官方摄影征集活动（activity_category = 1，已通过审核）
+基本信息：
+
+Path: /api/main/index
+Method: GET
+请求参数：可选 uid，用于识别是否已登录。
+
+返回参数：
+返回一个对象，包含 announcements、latest_uphotos、latest_personal_activities、latest_official_activities 4 个字段，具体字段可以与你前端实际需要再细化。
+
+七、评论管理模块接口
+1、活动评论列表接口
+
+功能：
+管理员在“活动评论管理”页面中，查看所有活动相关的评论，支持分页和关键字搜索。
+
+基本信息：
+
+Path: /api/admin/comment/activity
+Method: GET
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+page	int	是	页码	默认为 1
+pageSize	int	是	每页数量	默认为 50
+keyword	string	否	搜索关键字	根据评论内容搜索
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+data	array	是	评论列表	包含评论详细信息
+total	int	是	总评论数	
+page	int	是	当前页码	
+pageSize	int	是	每页数量	
+
+2、作品评论列表接口
+
+功能：
+管理员在“作品评论管理”页面中，查看所有作品相关的评论，支持分页和关键字搜索。
+
+基本信息：
+
+Path: /api/admin/comment/uphoto
+Method: GET
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+page	int	是	页码	默认为 1
+pageSize	int	是	每页数量	默认为 50
+keyword	string	否	搜索关键字	根据评论内容搜索
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+data	array	是	评论列表	包含评论详细信息
+total	int	是	总评论数	
+page	int	是	当前页码	
+pageSize	int	是	每页数量	
+
+3、删除活动评论接口
+
+功能：
+管理员在“活动评论管理”页面中，删除指定的活动评论。
+
+基本信息：
+
+Path: /api/admin/comment/activity/delete
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+id	BIGINT UNSIGNED	是	评论 ID	
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+id	BIGINT UNSIGNED	是	被删除的评论 ID	
+
+4、删除作品评论接口
+
+功能：
+管理员在“作品评论管理”页面中，删除指定的作品评论。
+
+基本信息：
+
+Path: /api/admin/comment/uphoto/delete
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+id	BIGINT UNSIGNED	是	评论 ID	
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+id	BIGINT UNSIGNED	是	被删除的评论 ID	
+
+三、作品上传与展示模块接口
+1、用户上传摄影作品接口
+功能：
+      当个人在“作品投稿”栏中进行投稿单个图片作品时，可使用此接口。
+      创建后，将会被管理员进行审核。通过审核的作品将会同时根据标签种类分存至各类分标签表内。
+      其中，在创建完成后，将为其专门开辟一个分表用于存储这个摄影作品的点赞和评论情况。
+关于uphoto_label：1为“记录”、2为“艺术”、3为“商业”、4为“人像”、5为“天文”、6为“航拍”、7为“城景”、8为“随手拍”、9为“旅拍”、0为“其他”。同一作品最多可打三个标签，超出则不允许通过。
+  基本信息：
+Path:/api/user/uphoto/upload
+        Method:POST
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+uphoto_description	string	否	作品描述	可选，长度不超过200字符
+activity_id	BIGINT UNSIGNED	是	活动id码	需要自行输入，随后会将该图片加入该活动中。
+同一作品最多只能加入三个活动内，活动间会用“,”分割
+uphoto_status	int	是	活动状态	1为“公开”、2为“仅自己可见”
+uphoto_label_0	int	是	作品标签	其他（1为是，0为否，下同）
+uphoto_label_1	int	是	作品标签	记录
+uphoto_label_2	int	是	作品标签	艺术
+uphoto_label_3	int	是	作品标签	商业
+uphoto_label_4	int	是	作品标签	人像
+uphoto_label_5	int	是	作品标签	天文
+uphoto_label_6	int	是	作品标签	航拍
+uphoto_label_7	int	是	作品标签	城景
+uphoto_label_8	int	是	作品标签	随手拍
+uphoto_label_9	int	是	作品标签	旅拍
+pointset	int	是	积分变更请求	创建作品需要该用户积分数达到10，若不满足则无法通过，故该值将被设置为“-10”
+
+
+返回数据：
+
+
+返回元素	返回类型	必须程度	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增
+created_at	datetime	是	创建时间	格式：YYYY-MM-DD
+status	int	是	作品状态	默认值为1（待审）
+success	boolean	是	操作结果	true表示成功，false表示失败
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+
+2、作品状态管理接口
+功能：
+      当个人在个人主页内的“作品管理”栏中进行提交单个图片作品的修改请求时，可使用此接口。
+      修改后，将会同步被管理员进行审核。
+      注：上传的图片、活动和标签不可更改。
+  基本信息：
+Path:/api/user/uphoto/manage
+        Method:POST
+
+  请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+uphoto_description	string	否	作品描述	可选，长度不超过200字符
+activity_id	BIGINT UNSIGNED	是	活动id码	需要自行输入，随后会将该图片加入该活动中。
+同一作品最多只能加入三个活动内
+uphoto_status	int	是	隐私度	1为“公开”、2为“仅自己可见”
+uphoto_label_0	int	是	作品标签	其他（1为是，0为否，下同）
+uphoto_label_1	int	是	作品标签	记录
+uphoto_label_2	int	是	作品标签	艺术
+uphoto_label_3	int	是	作品标签	商业
+uphoto_label_4	int	是	作品标签	人像
+uphoto_label_5	int	是	作品标签	天文
+uphoto_label_6	int	是	作品标签	航拍
+uphoto_label_7	int	是	作品标签	城景
+uphoto_label_8	int	是	作品标签	随手拍
+uphoto_label_9	int	是	作品标签	旅拍
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识
+pointset	int	是	积分变更请求	修改作品需要该用户积分数达到5，若不满足则无法通过，故该值将被设置为“-5”
+
+返回数据：
+
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+success	boolean	是	操作结果	true表示成功，false表示失败
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+3、个人作品查询接口
+功能：
+      当用户在任意个人主页（可通过点击他人头像）内的“作品列表”栏中进行提交单个图片作品的修改请求时，可使用此接口。
+该接口会遍历个人发表的图库集。
+      修改后，将会同步被管理员进行审核。
+      注：上传的图片、活动和标签不可更改。
+  基本信息：
+Path:/api/user/uphoto/search
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	自身账户id码	设置为自增，默认从10001开始，步长为1
+ask_uid	BIGINT UNSIGNED	是	将要访问的用户的id码	若这两个参数相同，则会显示“仅自己”观看的作品，反之则只显示公开图库。
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+
+
+4、个人作品删除接口
+功能：
+      当用户在个人主页内的“作品列表”栏中进行提交删除此作品请求时，可使用此接口。
+  基本信息：
+Path:/api/user/uphoto/delete
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增。
+需要检测将被删除的作品是否是该作者上传。若是，则通过，反之则不通过。
+pointset	int	是	积分变更请求	删除作品需要该用户积分数达到10，若不满足则无法通过，故该值将被设置为“-10”
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增。
+success	boolean	是	操作结果	true表示成功，false表示失败
+point_remain	int	是	剩余积分	返回剩余的积分（若剩余积分为负值则会额外提供错误弹窗：您的积分不足，还需“（这里填写负值的相反数）”积分
+
+
+5、个人作品泛搜索接口
+功能：
+      当用户在与主页的“广场”栏发起交互时，将自动调用此接口并显示搜索结果。
+      搜索结果将会以每二十个作品为一页。
+  基本信息：
+Path:/api/main/uphoto/search
+        Method:POST
+
+请求参数：
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+main_uphoto_search_1	int	是	搜索方式1	1为“显示最近上传的作品”、2为“显示点赞最多的作品
+main_uphoto_search_2	int	是	搜索方式2	根据标签进行搜索，只能同时搜索一个标签。
+main_uphoto_search_3_earlydate	date	否	允许的最早日期	根据作品的出现日期进行排序，若搜索出的作品早于该时间则不会读取该作品。若无数据则默认没有最早日期
+main_uphoto_search_3_latedate	date	否	允许的最晚日期	根据作品的出现日期进行排序，若搜索出的作品晚于该时间则不会读取该作品。若无数据则默认没有最晚日期
+
+
+返回数据：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	作品本体文件
+uphoto_title	string	是	作品标题	长度不超过50字符
+
+
+6、个人作品详情页接口
+功能：
+      当用户在“广场”内点击单个作品时，将进入该作品的详情页。
+  基本信息：
+Path:/api/user/uphoto/#uphoto_id/get
+        Method:POST
+
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+upthoto_id	BIGINT UNSIGNED	是	摄影作品ID	新上传作品的唯一标识，从1开始递增。
+
+返回数据：
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户id码	设置为自增，默认从10001开始，步长为1
+uphoto	string	是	摄影作品	用于上传摄影作品
+uphoto_title	string	是	作品标题	长度不超过50字符
+uphoto_description	string	否	作品描述	可选，长度不超过200字符
+activity_id	BIGINT UNSIGNED	是	活动id码	同一作品最多只能加入三个活动内
+uphoto_status	int	是	隐私度	1为“公开”、2为“仅自己可见”
+uphoto_label_0	int	是	作品标签	其他（1为是，0为否，下同）
+uphoto_label_1	int	是	作品标签	记录
+uphoto_label_2	int	是	作品标签	艺术
+uphoto_label_3	int	是	作品标签	商业
+uphoto_label_4	int	是	作品标签	人像
+uphoto_label_5	int	是	作品标签	天文
+uphoto_label_6	int	是	作品标签	航拍
+uphoto_label_7	int	是	作品标签	城景
+uphoto_label_8	int	是	作品标签	随手拍
+uphoto_label_9	int	是	作品标签	旅拍
+
+7、作品点赞接口
+
+功能：
+用户在任意作品详情页内，与点赞键发起交互后，根据点赞图标是否变红或变黑决定用户是否点赞或取消点赞。当完成点赞后，上传至数据库进行处理（决定该作品的点赞数是否 +1 或 -1）。
+注意：
+
+作者本人不能为自己的作品进行点赞。
+当检测到作品当前点赞数等于 0 时，禁止取消点赞，防止点赞数出现小于 0 的情况。
+基本信息：
+
+Path: /api/main/uphoto/#uphoto_id/like
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户 id 码	
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	从 1 开始递增
+like_change	int	是	点赞或取消点赞	点赞时 like_change = 1；取消点赞时 like_change = 0
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	
+uid	BIGINT UNSIGNED	是	账户 id 码	
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+8、作品评论接口
+
+功能：
+用户在任意作品详情页内，与评论区域发起交互后，根据输入的评论内容进行发表。当完成评论后，上传至数据库进行处理（决定该作品的评论数是否 +1，并保存评论内容）。
+注意：
+
+每位用户在同一作品下最多只能进行一次评论（不提供楼中楼回复）。
+若用户删除评论，则该用户在该作品下的记录中 uphoto_comment 变为 0，若该记录同时 uphoto_like = 0，则删除该行记录。
+基本信息：
+
+Path: /api/main/uphoto/#uphoto_id/comment
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户 id 码	
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	从 1 开始递增
+uphoto_comment_detail	string	是	评论内容	长度上限为 1200
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	
+uid	BIGINT UNSIGNED	是	账户 id 码	
+success	boolean	是	操作结果	true 表示成功，false 表示失败
+9、管理员作品审核查询接口
+
+功能：
+管理员在后台“作品审核管理”中，统一查看所有待审核的作品。系统会遍历所有 uphoto_review_status = 1（未审核）的作品。
+
+基本信息：
+
+Path: /api/admin/uphoto/review
+Method: GET
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员账户
+permission	int	是	权限等级	必须为 0（管理员）
+返回参数（列表）：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	摄影作品 ID	
+uid	BIGINT UNSIGNED	是	作者账户 id	
+uphoto	string	是	作品本体/URL	
+uphoto_title	string	是	作品标题	
+uphoto_description	string	否	作品描述	
+uphoto_label_0~9	int	是	作品标签	
+uphoto_status	int	是	隐私度	1 公开，2 仅自己可见
+uphoto_review_status	int	是	审核情况	1 未审核，0 不通过，2 通过
+10、作品审核通否接口
+
+功能：
+管理员在后台“作品审核管理”页面对单个作品进行审核，通过或不通过。
+
+若审核通过：uphoto_review_status = 2，并可根据需要将其分发至相应标签分类。
+若审核不通过：uphoto_review_status = 0，作品不会在公开区域被检索，仅作者在个人主页中可以看到。
+基本信息：
+
+Path: /api/admin/uphoto/review/
+Method: GET（简化处理）
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+upthoto_id	BIGINT UNSIGNED	是	被审核作品 ID	
+uid	BIGINT UNSIGNED	是	管理员账户 id	
+permission	int	是	权限等级	必须为 0
+uphoto_review_status	int	是	审核情况	0 或 2
+四、积分接口（补充说明）
+1、积分变更接口（原文已给，这里补充说明）
+
+Path: /api/user/point/#uid
+Method: GET
+功能与请求/返回参数不变，补充规则说明：
+所有涉及积分的业务（创建/修改/删除活动和作品、评论、点赞、封禁等），都应调用此接口或在后端通过相同逻辑变更用户积分。
+若积分变更为负数，则自动将积分置为 0。
+2、积分查询接口
+
+功能：
+用于在前端显示当前用户的积分情况（如个人主页、管理员后台页面右上角“当前积分：point”）。
+
+基本信息：
+
+Path: /api/user/point/#uid/info
+Method: GET
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	账户 id 码	
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+point	int	是	当前积分	
+success	boolean	是	操作结果	
+五、管理员账号与权限管理模块接口（补充）
+1、账号异常管理接口（封禁用户）
+
+功能：
+管理员在“账号异常管理”页面中，对指定用户进行封禁操作。封禁后会将该用户的权限修改为“游客”（permission = 2），该用户仅能以游客身份浏览，不可上传或修改任何作品/活动。
+
+基本信息：
+
+Path: /api/admin/user/ban
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+ban_uid	BIGINT UNSIGNED	是	被封禁账户 id	
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+ban_uid	BIGINT UNSIGNED	是	被封禁账户 id	
+success	boolean	是	操作结果	
+2、权限修改接口
+
+功能：
+管理员在“权限修改”页面中，对指定用户的权限等级进行变更，可将普通用户提升为管理员，也可以将管理员降低为普通用户。
+
+基本信息：
+
+Path: /api/admin/user/permission
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+target_uid	BIGINT UNSIGNED	是	目标用户 id	
+target_perm	int	是	目标权限等级	0 管理员/1 普通/2 游客
+返回参数：同样返回 target_uid 和 success。
+
+3、评论管理接口
+
+功能：
+管理员在“评论管理”页面中，对任意作品或活动下的评论进行删除操作（用于处理违规评论）。
+
+基本信息：
+
+Path: /api/admin/comment/manage
+Method: POST
+请求参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+uid	BIGINT UNSIGNED	是	管理员账户 id	必须为管理员
+permission	int	是	管理员权限	必须为 0
+target_type	string	是	评论所属类型	"activity" 或 "uphoto"
+target_id	BIGINT UNSIGNED	是	活动或作品 id	
+target_user_uid	BIGINT UNSIGNED	是	评论发布者 uid	用于定位评论记录
+返回参数：
+
+参数名称	参数类型	是否必须	备注	其他信息
+success	boolean	是	操作结果	
+六、主页与公共展示接口（补充）
+1、主页信息接口
+
+功能：
+主页 /main 加载时，用于获取：
+
+当前公告列表
+最新 9 张通过审核的图片（用于轮播）
+最新 3 个非官方活动（activity_category = 2，已通过审核）
+最新 3 个官方摄影征集活动（activity_category = 1，已通过审核）
+基本信息：
+
+Path: /api/main/index
+Method: GET
+请求参数：可选 uid，用于识别是否已登录。
+
+返回参数：
+返回一个对象，包含 announcements、latest_uphotos、latest_personal_activities、latest_official_activities 4 个字段，具体字段可以与你前端实际需要再细化。

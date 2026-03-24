@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>个人主页编辑 - 公益摄影交流平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1220; color:#e5e7eb; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:#0f172a; border-bottom:1px solid rgba(255,255,255,.08); }
+    .logo { font-weight:800; cursor:pointer; color:#fff; }
+    .wrap { max-width: 1100px; margin: 18px auto; padding: 0 18px; display:grid; grid-template-columns: 240px 1fr; gap:16px; }
+    .card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; }
+    .menu button { width:100%; text-align:left; padding:10px 12px; margin:6px 0; border-radius:12px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.03); color:#fff; cursor:pointer; }
+    .menu button.active { background:#2563eb; border:none; }
+    label { display:block; font-size:14px; margin: 12px 0 4px 0; }
+    input[type="text"], input[type="password"], input[type="email"], textarea { width:100%; padding:10px 12px; border-radius:12px; border:none; margin-top:6px; box-sizing: border-box; }
+    textarea { min-height: 90px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .btn { padding:10px 12px; border-radius:12px; border:none; cursor:pointer; font-weight:700; }
+    .btn.primary { background:#10b981; color:#052e1c; }
+    .btn.danger { background:#ef4444; color:#fff; }
+    .btn.warning { background:#f59e0b; color:#fff; }
+    .hint { opacity:.8; font-size: 13px; }
+    .avatar { width:64px; height:64px; border-radius:18px; background:rgba(255,255,255,.1); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .avatar img { width:100%; height:100%; object-fit:cover; }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; font-size:14px; margin-bottom:6px; }
+    .form-group input, .form-group textarea { width:100%; padding:10px 12px; border-radius:12px; border:none; margin-top:6px; box-sizing: border-box; }
+    .radio-group, .checkbox-group { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+    .radio-item, .checkbox-item { display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .radio-item input, .checkbox-item input { width:auto; margin:0; }
+    .date-input-wrapper {
+        position: relative;
+        display: block;
+    }
+    .date-input-wrapper input {
+        width: 100%;
+        padding-right: 36px;
+        cursor: pointer;
+        color-scheme: dark;
+    }
+    .date-input-wrapper::after {
+        content:"📅";
+        position:absolute;
+        right:12px;
+        top:50%;
+        transform:translateY(-50%);
+        pointer-events:none;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+        background: transparent;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .item-list { margin-top:12px; }
+    .item-card { display:flex; gap:12px; padding:12px; background:rgba(255,255,255,.05); border-radius:12px; margin-bottom:8px; cursor:pointer; }
+    .item-card:hover { background:rgba(255,255,255,.1); }
+    .item-thumb { width:80px; height:60px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; }
+    .item-thumb img { width:100%; height:100%; object-fit:cover; }
+    .item-info { flex:1; min-width:0; }
+    .item-title { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item-meta { font-size:12px; opacity:.8; margin-top:4px; }
+    .item-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+    .tag { padding:2px 6px; border-radius:4px; font-size:11px; background:rgba(59,130,246,.2); color:#bfdbfe; }
+    .empty-list { padding:20px; text-align:center; opacity:.7; }
+    .section-title { font-size:16px; font-weight:700; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="logo" @click="goMain">公益摄影交流平台</div>
+    <div class="hint">个人主页编辑</div>
+  </div>
+
+  <div class="wrap">
+    <div class="card menu">
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
+        <div class="avatar">
+          <span v-if="!avatarPreview">?</span>
+          <img v-else :src="avatarPreview" alt="avatar" />
+        </div>
+        <div>
+          <div style="font-weight:800">uid={{ uid }}</div>
+          <div class="hint">permission={{ permission }}</div>
+        </div>
+      </div>
+      <div class="hint" style="margin-bottom:6px;">当前积分：<span style="font-weight:700; font-size:14px;">{{ point }}</span></div>
+      <button :class="{active: tab==='profile'}" @click="tab='profile'">个人基本信息管理</button>
+      <button :class="{active: tab==='photoList'}" @click="tab='photoList'; loadUserPhotos()">个人作品管理</button>
+      <button :class="{active: tab==='photoCreate'}" @click="tab='photoCreate'">上传新作品</button>
+      <button :class="{active: tab==='activityList'}" @click="tab='activityList'; loadUserActivities()">个人活动管理</button>
+      <button :class="{active: tab==='activityCreate'}" @click="tab='activityCreate'">创建新活动</button>
+      <button :class="{active: tab==='account'}" @click="tab='account'">个人账户管理</button>
+      <button @click="logout">退出登录</button>
+      <button :class="{active: tab==='delete'}" @click="tab='delete'">注销账户</button>
+    </div>
+
+    <!-- 个人基本信息管理 -->
+    <div class="card" v-if="tab==='profile'">
+      <h3 style="margin:0 0 6px 0;">个人基本信息管理</h3>
+      <div class="hint">保存时会把头像 Base64 落盘到 `src/main/picture/avatar/uid_xxx.png`，数据库记录 `picture/avatar/uid_xxx.png`</div>
+      
+      <label>登录名（必填）
+        <input v-model="form.loginname" maxlength="20" />
+      </label>
+      <label>昵称（可选）
+        <input v-model="form.username" maxlength="30" />
+      </label>
+      <label>邮箱（可选）
+        <input v-model="form.email" type="email" />
+      </label>
+      <label>个人简介（可选）
+        <textarea v-model="form.personal_profile" maxlength="100"></textarea>
+      </label>
+      <label>生日（可选）
+        <div class="date-input-wrapper" @click="() => $event.currentTarget.querySelector('input').click()">
+          <input v-model="form.birthday" type="date" />
+        </div>
+      </label>
+      <label>头像（可选，自动转 Base64）
+        <input type="file" accept="image/*" @change="pickAvatar" />
+      </label>
+
+      <div class="row">
+        <button class="btn primary" @click="save">保存修改</button>
+      </div>
+    </div>
+
+    <!-- 个人作品列表 -->
+    <div class="card" v-else-if="tab==='photoList'">
+      <h3 style="margin:0 0 6px 0;">个人作品管理</h3>
+      <div class="hint">显示所有由您创建的作品，点击作品可进入编辑模式</div>
+      
+      <div class="item-list" v-if="userPhotos.length">
+        <div v-for="photo in userPhotos" :key="photo.upthoto_id" class="item-card" @click="editPhoto(photo)">
+          <div class="item-thumb">
+            <img v-if="photo.uphoto" :src="photoUrl(photo.uphoto)" alt="photo" />
+            <span v-else>无图</span>
+          </div>
+          <div class="item-info">
+            <div class="item-title">{{ photo.uphoto_title || '未命名作品' }}</div>
+            <div class="item-meta">发布时间：{{ formatDate(photo.created_at) }}</div>
+            <div class="item-tags">
+              <span class="tag" v-for="tag in extractTags(photo)" :key="tag">{{ tag }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-list">暂无作品，快去上传吧！</div>
+    </div>
+
+    <!-- 编辑作品 -->
+    <div class="card" v-else-if="tab==='photoEdit'">
+      <h3 style="margin:0 0 6px 0;">编辑作品</h3>
+      <div class="hint">后端接口：POST /api/user/uphoto/manage</div>
+      
+      <label>作品标题
+        <input v-model="editForm.uphoto_title" maxlength="50" placeholder="请输入作品标题" />
+      </label>
+      
+      <label>作品描述（可选）
+        <textarea v-model="editForm.uphoto_description" maxlength="200" placeholder="请输入作品描述"></textarea>
+      </label>
+      
+      <label>关联活动ID（最多3个）</label>
+      <div style="margin-top: 6px; gap: 8px; display: flex; flex-direction: column;">
+        <div v-for="(activity, index) in editForm.activities" :key="index" style="display: flex; gap: 8px; align-items: center;">
+          <input v-model="activity.id" type="text" placeholder="请输入活动ID" style="flex: 1;" />
+          <div v-if="activity.name" style="font-size: 12px; color: #9ca3af;">{{ activity.name }}</div>
+          <div v-if="activity.error" style="font-size: 12px; color: #ef4444;">{{ activity.error }}</div>
+          <button class="btn danger" style="padding: 4px 8px; font-size: 12px;" @click="removeEditActivityInput(index)">删除</button>
+        </div>
+        <button v-if="editForm.activities.length < 3 && !editForm.showQueryButton" class="btn" style="width: auto; padding: 6px 12px; font-size: 12px;" @click="addEditActivityInput">+ 添加活动</button>
+        <button v-else-if="editForm.activities.length === 3 && editForm.showQueryButton" class="btn primary" style="width: auto; padding: 6px 12px; font-size: 12px;" @click="queryEditActivities">查询活动</button>
+      </div>
+      
+      <label>隐私度</label>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" v-model="editForm.uphoto_status" :value="1" />
+          <span>公开</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="editForm.uphoto_status" :value="2" />
+          <span>仅自己可见</span>
+        </label>
+      </div>
+      
+      <label style="margin-top:12px;">作品标签（最多选择3个）</label>
+      <div class="checkbox-group">
+        <label class="checkbox-item" v-for="tag in labelDefs" :key="tag.value">
+          <input type="checkbox" :value="tag.value" v-model="editForm.selectedLabels" :disabled="editForm.selectedLabels.length >= 3 && !editForm.selectedLabels.includes(tag.value)" />
+          <span>{{ tag.text }}</span>
+        </label>
+      </div>
+      <div class="hint" style="margin-top:4px;">已选择：{{ editForm.selectedLabels.length }}/3</div>
+      
+      <label style="margin-top:12px;">上传摄影作品文件
+        <input type="file" accept="image/*" @change="pickEditPhoto" />
+      </label>
+      
+      <div style="margin-top:16px;">
+        <button class="btn primary" @click="updatePhoto">保存修改</button>
+        <button class="btn" @click="tab='photoList'">取消</button>
+      </div>
+    </div>
+
+    <!-- 上传新作品 -->
+    <div class="card" v-else-if="tab==='photoCreate'">
+      <h3 style="margin:0 0 6px 0;">上传新作品</h3>
+      <div class="hint">后端接口：POST /api/user/uphoto/upload</div>
+      
+      <label>作品标题
+        <input v-model="photoForm.uphoto_title" maxlength="50" placeholder="请输入作品标题" />
+      </label>
+      
+      <label>作品描述（可选）
+        <textarea v-model="photoForm.uphoto_description" maxlength="200" placeholder="请输入作品描述"></textarea>
+      </label>
+      
+      <label>关联活动ID（最多3个）</label>
+      <div style="margin-top: 6px; gap: 8px; display: flex; flex-direction: column;">
+        <div v-for="(activity, index) in photoForm.activities" :key="index" style="display: flex; gap: 8px; align-items: center;">
+          <input v-model="activity.id" type="text" placeholder="请输入活动ID" style="flex: 1;" />
+          <div v-if="activity.name" style="font-size: 12px; color: #9ca3af;">{{ activity.name }}</div>
+          <div v-if="activity.error" style="font-size: 12px; color: #ef4444;">{{ activity.error }}</div>
+          <button class="btn danger" style="padding: 4px 8px; font-size: 12px;" @click="removeActivityInput(index)">删除</button>
+        </div>
+        <button v-if="photoForm.activities.length < 3 && !photoForm.showQueryButton" class="btn" style="width: auto; padding: 6px 12px; font-size: 12px;" @click="addActivityInput">+ 添加活动</button>
+        <button v-else-if="photoForm.activities.length === 3 && photoForm.showQueryButton" class="btn primary" style="width: auto; padding: 6px 12px; font-size: 12px;" @click="queryActivities">查询活动</button>
+      </div>
+      
+      <label>隐私度</label>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" v-model="photoForm.uphoto_status" :value="1" />
+          <span>公开</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="photoForm.uphoto_status" :value="2" />
+          <span>仅自己可见</span>
+        </label>
+      </div>
+      
+      <label style="margin-top:12px;">作品标签（最多选择3个）</label>
+      <div class="checkbox-group">
+        <label class="checkbox-item" v-for="tag in labelDefs" :key="tag.value">
+          <input type="checkbox" :value="tag.value" v-model="photoForm.selectedLabels" :disabled="photoForm.selectedLabels.length >= 3 && !photoForm.selectedLabels.includes(tag.value)" />
+          <span>{{ tag.text }}</span>
+        </label>
+      </div>
+      <div class="hint" style="margin-top:4px;">已选择：{{ photoForm.selectedLabels.length }}/3</div>
+      
+      <label style="margin-top:12px;">上传摄影作品文件
+        <input type="file" accept="image/*" @change="pickPhoto" />
+      </label>
+      
+      <div style="margin-top:16px;">
+        <button class="btn primary" @click="uploadPhoto">上传作品</button>
+      </div>
+    </div>
+
+    <!-- 个人活动列表 -->
+    <div class="card" v-else-if="tab==='activityList'">
+      <h3 style="margin:0 0 6px 0;">个人活动管理</h3>
+      <div class="hint">显示所有由您创建的活动，点击活动可进入详情</div>
+      
+      <div class="item-list" v-if="userActivities.length">
+        <div v-for="activity in userActivities" :key="activity.activity_id" class="item-card" @click="editActivity(activity)">
+          <div class="item-thumb">
+            <img v-if="activity.activity_cover_image" :src="coverUrl(activity.activity_cover_image)" alt="cover" />
+            <span v-else>无封面</span>
+          </div>
+          <div class="item-info">
+            <div class="item-title">{{ activity.activity_name || '未命名活动' }}</div>
+            <div class="item-meta" v-if="activity.activity_time_early && activity.activity_time_end">
+              {{ formatDate(activity.activity_time_early) }} 至 {{ formatDate(activity.activity_time_end) }}
+            </div>
+            <div class="item-meta" v-else>时间未设置</div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-list">暂无活动，快去创建吧！</div>
+    </div>
+
+    <!-- 创建新活动 -->
+    <div class="card" v-else-if="tab==='activityCreate'">
+      <h3 style="margin:0 0 6px 0;">创建新活动</h3>
+      <div class="hint">接口：POST /api/user/activity/create（创建活动会扣除100积分）</div>
+      
+      <label>活动名称
+        <input v-model="activityForm.activity_name" maxlength="50" placeholder="请输入活动名称" />
+      </label>
+      
+      <label>活动描述（可选）
+        <textarea v-model="activityForm.activity_description" maxlength="200" placeholder="请输入活动描述"></textarea>
+      </label>
+      
+      <label>活动分类</label>
+      <div class="radio-group">
+        <label class="radio-item" v-if="permission===0">
+          <input type="radio" v-model="activityForm.activity_category" :value="1" />
+          <span>官方摄影征集活动</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="activityForm.activity_category" :value="2" />
+          <span>个人组织摄影活动</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="activityForm.activity_category" :value="3" />
+          <span>相册集</span>
+        </label>
+      </div>
+      
+      <label style="margin-top:12px;">活动地点（可选）
+        <input v-model="activityForm.activity_location" placeholder="请输入活动地点" />
+      </label>
+      
+      <label>活动开始日期
+        <div class="date-input-wrapper" @click="() => $event.currentTarget.querySelector('input').click()">
+          <input v-model="activityForm.activity_time_start" type="date" />
+        </div>
+      </label>
+      
+      <label>活动结束日期
+        <div class="date-input-wrapper" @click="() => $event.currentTarget.querySelector('input').click()">
+          <input v-model="activityForm.activity_time_end" type="date" />
+        </div>
+      </label>
+      
+      <label>活动状态</label>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" v-model="activityForm.activity_status" :value="0" />
+          <span>仅自己观看</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="activityForm.activity_status" :value="1" />
+          <span>公开征集</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="activityForm.activity_status" :value="2" />
+          <span>仅读</span>
+        </label>
+      </div>
+      
+      <label style="margin-top:12px;">活动封面（可选）
+        <input type="file" accept="image/*" @change="pickActivityCover" />
+      </label>
+
+      <div class="row" style="margin-top:16px;">
+        <button class="btn primary" @click="createActivity">创建活动</button>
+      </div>
+    </div>
+
+    <!-- 编辑活动 -->
+    <div class="card" v-else-if="tab==='activityEdit'">
+      <h3 style="margin:0 0 6px 0;">编辑活动</h3>
+      <div class="hint">编辑您创建的活动</div>
+      
+      <label>活动名称
+        <input v-model="editActivityForm.activity_name" maxlength="50" placeholder="请输入活动名称" />
+      </label>
+      
+      <label>活动描述（可选）
+        <textarea v-model="editActivityForm.activity_description" maxlength="200" placeholder="请输入活动描述"></textarea>
+      </label>
+      
+      <label>活动分类</label>
+      <div class="radio-group">
+        <label class="radio-item" v-if="permission===0">
+          <input type="radio" v-model="editActivityForm.activity_category" :value="1" />
+          <span>官方摄影征集活动</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="editActivityForm.activity_category" :value="2" />
+          <span>个人组织摄影活动</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="editActivityForm.activity_category" :value="3" />
+          <span>相册集</span>
+        </label>
+      </div>
+      
+      <label style="margin-top:12px;">活动地点（可选）
+        <input v-model="editActivityForm.activity_location" placeholder="请输入活动地点" />
+      </label>
+      
+      <label>活动开始日期
+        <div class="date-input-wrapper" @click="() => $event.currentTarget.querySelector('input').click()">
+          <input v-model="editActivityForm.activity_time_start" type="date" />
+        </div>
+      </label>
+      
+      <label>活动结束日期
+        <div class="date-input-wrapper" @click="() => $event.currentTarget.querySelector('input').click()">
+          <input v-model="editActivityForm.activity_time_end" type="date" />
+        </div>
+      </label>
+      
+      <label>活动状态</label>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" v-model="editActivityForm.activity_status" :value="0" />
+          <span>仅自己观看</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="editActivityForm.activity_status" :value="1" />
+          <span>公开征集</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" v-model="editActivityForm.activity_status" :value="2" />
+          <span>仅读</span>
+        </label>
+      </div>
+      
+      <label style="margin-top:12px;">活动封面（可选）
+        <input type="file" accept="image/*" @change="pickEditActivityCover" />
+      </label>
+
+      <div class="row" style="margin-top:16px;">
+        <button class="btn primary" @click="updateActivity">保存修改</button>
+        <button class="btn" @click="tab='activityList'">取消</button>
+      </div>
+    </div>
+
+    <!-- 个人账户管理 -->
+    <div class="card" v-else-if="tab==='account'">
+      <h3 style="margin:0 0 6px 0;">个人账户管理</h3>
+      <div class="hint">修改账户密码和其他设置</div>
+      
+      <label>当前密码
+        <input v-model="passwordForm.currentPassword" type="password" placeholder="请输入当前密码" />
+      </label>
+      
+      <label>新密码
+        <input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" />
+      </label>
+      
+      <label>确认新密码
+        <input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" />
+      </label>
+      
+      <div class="row" style="margin-top:16px;">
+        <button class="btn warning" @click="changePassword">修改密码</button>
+      </div>
+    </div>
+
+    <!-- 注销账户 -->
+    <div class="card" v-else-if="tab==='delete'">
+      <h3 style="margin:0 0 6px 0;">注销账户</h3>
+      <div class="hint">管理员账号（permission=0）不允许注销。</div>
+      <button class="btn danger" @click="doDelete">确认注销</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, reactive, ref } = Vue;
+
+createApp({
+  setup() {
+    const uid = Number(localStorage.getItem('pwps_uid') || 0);
+    const permission = Number(localStorage.getItem('pwps_permission') || 2);
+    const loginname = localStorage.getItem('pwps_loginname') || '';
+
+    const tab = ref('profile');
+    const point = ref(0);
+
+    const avatarPreview = ref('');
+    const savedAvatarPath = localStorage.getItem('pwps_avatar') || '';
+    if (savedAvatarPath) avatarPreview.value = '/' + savedAvatarPath.replace(/^\/+/, '');
+
+    const form = reactive({
+      uid,
+      loginname,
+      username: '',
+      email: '',
+      personal_profile: '',
+      permission,
+      birthday: '',
+      avatar: ''
+    });
+
+    const passwordForm = reactive({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+
+    const userPhotos = ref([]);
+    const userActivities = ref([]);
+
+    const photoForm = reactive({
+      uphoto_title: '',
+      uphoto_description: '',
+      activities: [{ id: '', name: '', error: '' }],
+      uphoto_status: 1,
+      uphoto: '',
+      selectedLabels: [],
+      showQueryButton: false
+    });
+
+    const editForm = reactive({
+      upthoto_id: '',
+      uphoto_title: '',
+      uphoto_description: '',
+      activities: [{ id: '', name: '', error: '' }],
+      uphoto_status: 1,
+      uphoto: '',
+      selectedLabels: [],
+      showQueryButton: false
+    });
+
+    const activityForm = reactive({
+      activity_name: '',
+      activity_description: '',
+      activity_category: 2,
+      activity_location: '',
+      activity_time_start: '',
+      activity_time_end: '',
+      activity_status: 1,
+      activity_cover_image: ''
+    });
+
+    const editActivityForm = reactive({
+      activity_id: '',
+      activity_name: '',
+      activity_description: '',
+      activity_category: 2,
+      activity_location: '',
+      activity_time_start: '',
+      activity_time_end: '',
+      activity_status: 1,
+      activity_cover_image: ''
+    });
+
+    const labelDefs = [
+      { value: 0, text: '其他' },
+      { value: 1, text: '记录' },
+      { value: 2, text: '艺术' },
+      { value: 3, text: '商业' },
+      { value: 4, text: '人像' },
+      { value: 5, text: '天文' },
+      { value: 6, text: '航拍' },
+      { value: 7, text: '城景' },
+      { value: 8, text: '随手拍' },
+      { value: 9, text: '旅拍' }
+    ];
+
+    const loadUserPhotos = async () => {
+      try {
+        const resp = await axios.post(`/api/user/${uid}/uphoto/search`, {
+          uid: uid,
+          ask_uid: uid
+        });
+        if (resp.data && Array.isArray(resp.data.data)) {
+          userPhotos.value = resp.data.data;
+        }
+      } catch (e) {
+        console.error('加载作品失败:', e);
+      }
+    };
+
+    const loadUserActivities = async () => {
+      try {
+        const resp = await axios.get('/api/user/activity/query', {
+          params: { uid: uid, ask_uid: uid }
+        });
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          userActivities.value = resp.data.data;
+        }
+      } catch (e) {
+        console.error('加载活动失败:', e);
+      }
+    };
+
+    const photoUrl = (path) => {
+      if (!path) return '';
+      return '/' + String(path).replace(/^\/+/, '');
+    };
+
+    const coverUrl = (path) => {
+      if (!path) return '';
+      return '/' + String(path).replace(/^\/+/, '');
+    };
+
+    const formatDate = (d) => {
+      if (!d) return '未知';
+      try {
+        const dt = new Date(d);
+        if (Number.isNaN(dt.getTime())) return String(d);
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      } catch {
+        return String(d);
+      }
+    };
+
+    const extractTags = (photo) => {
+      const tags = [];
+      for (let i = 0; i <= 9; i++) {
+        const key = 'uphoto_label_' + i;
+        if (photo[key] === 1) {
+          const found = labelDefs.find(x => x.value === i);
+          tags.push(found ? found.text : '标签' + i);
+        }
+      }
+      return tags.length ? tags : ['未打标签'];
+    };
+
+    const editPhoto = (photo) => {
+      // 清空编辑表单
+      editForm.upthoto_id = photo.upthoto_id;
+      editForm.uphoto_title = photo.uphoto_title || '';
+      editForm.uphoto_description = photo.uphoto_description || '';
+      editForm.uphoto_status = photo.uphoto_status || 1;
+      editForm.uphoto = photo.uphoto || '';
+      editForm.selectedLabels = [];
+      editForm.activities = [{ id: '', name: '', error: '' }];
+      editForm.showQueryButton = false;
+      
+      // 提取作品标签
+      for (let i = 0; i <= 9; i++) {
+        const key = 'uphoto_label_' + i;
+        if (photo[key] === 1) {
+          editForm.selectedLabels.push(i);
+        }
+      }
+      
+      // 提取关联活动ID
+      if (photo.activity_id) {
+        const activityIds = photo.activity_id.split(',');
+        editForm.activities = activityIds.map(id => ({ id: id.trim(), name: '', error: '' }));
+        if (editForm.activities.length >= 3) {
+          editForm.showQueryButton = true;
+        }
+      }
+      
+      // 切换到编辑标签页
+      tab.value = 'photoEdit';
+    };
+
+    const editActivity = (activity) => {
+      editActivityForm.activity_id = activity.activity_id;
+      editActivityForm.activity_name = activity.activity_name || '';
+      editActivityForm.activity_description = activity.activity_description || '';
+      editActivityForm.activity_category = activity.activity_category || 2;
+      editActivityForm.activity_location = activity.activity_location || '';
+      editActivityForm.activity_time_start = activity.activity_time_early ? activity.activity_time_early.slice(0, 10) : '';
+      editActivityForm.activity_time_end = activity.activity_time_end ? activity.activity_time_end.slice(0, 10) : '';
+      editActivityForm.activity_status = activity.activity_status || 1;
+      editActivityForm.activity_cover_image = activity.activity_cover_image || '';
+      tab.value = 'activityEdit';
+    };
+
+    const goActivityDetail = (activityId) => {
+      window.location.href = '/main/activity/' + activityId;
+    };
+
+    const pickPhoto = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { photoForm.uphoto = reader.result; };
+      reader.readAsDataURL(file);
+    };
+
+    const pickEditPhoto = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { editForm.uphoto = reader.result; };
+      reader.readAsDataURL(file);
+    };
+
+    const pickActivityCover = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { activityForm.activity_cover_image = reader.result; };
+      reader.readAsDataURL(file);
+    };
+
+    const pickEditActivityCover = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { editActivityForm.activity_cover_image = reader.result; };
+      reader.readAsDataURL(file);
+    };
+
+    const updateActivity = async () => {
+      if (!editActivityForm.activity_name) {
+        alert('请输入活动名称');
+        return;
+      }
+      if (editActivityForm.activity_time_start && editActivityForm.activity_time_end) {
+        const startDate = new Date(editActivityForm.activity_time_start);
+        const endDate = new Date(editActivityForm.activity_time_end);
+        if (endDate < startDate) {
+          alert('活动结束时间不能早于开始时间');
+          return;
+        }
+      }
+      try {
+        const resp = await axios.post('/api/user/activity/edit', {
+          activity_id: editActivityForm.activity_id,
+          activity_name: editActivityForm.activity_name,
+          activity_description: editActivityForm.activity_description,
+          activity_category: editActivityForm.activity_category,
+          activity_location: editActivityForm.activity_location,
+          activity_time: editActivityForm.activity_time_start || null,
+          activity_time_end: editActivityForm.activity_time_end || null,
+          activity_status: editActivityForm.activity_status,
+          activity_cover_image: editActivityForm.activity_cover_image || null,
+          uid,
+          permission
+        });
+        if (resp.data && resp.data.success) {
+          alert('活动修改成功');
+          tab.value = 'activityList';
+          loadUserActivities();
+        } else {
+          alert('活动修改失败');
+        }
+      } catch (e) {
+        alert('请求失败：' + e);
+      }
+    };
+
+    const createActivity = async () => {
+      if (!activityForm.activity_name) {
+        alert('请输入活动名称');
+        return;
+      }
+      // 验证日期是否合法
+      if (activityForm.activity_time_start && activityForm.activity_time_end) {
+        const startDate = new Date(activityForm.activity_time_start);
+        const endDate = new Date(activityForm.activity_time_end);
+        if (endDate < startDate) {
+          alert('活动结束时间不能早于开始时间');
+          return;
+        }
+      }
+      try {
+        const activityTime = activityForm.activity_time_start || null;
+        const resp = await axios.post('/api/user/activity/create', {
+          activity_name: activityForm.activity_name,
+          activity_description: activityForm.activity_description,
+          activity_category: activityForm.activity_category,
+          activity_location: activityForm.activity_location,
+          activity_time: activityTime,
+          activity_status: activityForm.activity_status,
+          activity_cover_image: activityForm.activity_cover_image || null,
+          uid,
+          permission,
+          pointset: -100
+        });
+        if (resp.data && resp.data.success) {
+          alert('创建活动成功，activity_id=' + resp.data.activity_id);
+          activityForm.activity_name = '';
+          activityForm.activity_description = '';
+          activityForm.activity_location = '';
+          activityForm.activity_time_start = '';
+          activityForm.activity_time_end = '';
+          activityForm.activity_cover_image = '';
+          loadUserActivities();
+        } else {
+          alert('创建活动失败，可能积分不足或参数错误');
+        }
+      } catch (e) {
+        alert('请求失败：' + e);
+      }
+    };
+
+    const addActivityInput = () => {
+      if (photoForm.activities.length < 3) {
+        photoForm.activities.push({ id: '', name: '', error: '' });
+      }
+      // Dynamically update query button visibility based on input count
+      photoForm.showQueryButton = photoForm.activities.length === 3;
+    };
+
+    const removeActivityInput = (index) => {
+      photoForm.activities.splice(index, 1);
+      photoForm.showQueryButton = photoForm.activities.length === 3;
+    };
+
+    const addEditActivityInput = () => {
+      if (editForm.activities.length < 3) {
+        editForm.activities.push({ id: '', name: '', error: '' });
+        editForm.showQueryButton = editForm.activities.length === 3;
+      }
+    };
+
+    const removeEditActivityInput = (index) => {
+      editForm.activities.splice(index, 1);
+      editForm.showQueryButton = editForm.activities.length === 3;
+    };
+
+    const queryActivities = async () => {
+      for (let activity of photoForm.activities) {
+        if (activity.id) {
+          try {
+            const resp = await axios.post(`/api/main/activity/${activity.id}/get`, {
+              uid: uid || 0,
+              activity_id: activity.id,
+              permission
+            });
+            if (resp.data && resp.data.success) {
+              activity.name = resp.data.activity_name;
+              activity.error = '';
+            } else {
+              activity.name = '';
+              activity.error = '活动不存在或未过审';
+            }
+          } catch (e) {
+            activity.name = '';
+            activity.error = '查询失败';
+          }
+        }
+      }
+    };
+
+    const queryEditActivities = async () => {
+      for (let activity of editForm.activities) {
+        if (activity.id) {
+          try {
+            const resp = await axios.post(`/api/main/activity/${activity.id}/get`, {
+              uid: uid || 0,
+              activity_id: activity.id,
+              permission
+            });
+            if (resp.data && resp.data.success) {
+              activity.name = resp.data.activity_name;
+              activity.error = '';
+            } else {
+              activity.name = '';
+              activity.error = '活动不存在或未过审';
+            }
+          } catch (e) {
+            activity.name = '';
+            activity.error = '查询失败';
+          }
+        }
+      }
+    };
+
+    const uploadPhoto = async () => {
+      if (!photoForm.uphoto_title) {
+        alert('请输入作品标题');
+        return;
+      }
+      if (!photoForm.uphoto) {
+        alert('请选择作品图片');
+        return;
+      }
+      // 收集并排序活动ID
+      const activityIds = photoForm.activities
+        .map(activity => activity.id.trim())
+        .filter(id => id !== '')
+        .map(id => parseInt(id))
+        .filter(id => !isNaN(id))
+        .sort((a, b) => b - a); // 从大到小排序
+      
+      // 活动ID为可选项，不需要强制要求
+      
+      // 检查是否有活动查询失败
+      const hasError = photoForm.activities.some(activity => activity.id && activity.error);
+      if (hasError) {
+        alert('请检查活动ID是否正确');
+        return;
+      }
+      
+      const labels = {};
+      for (let i = 0; i <= 9; i++) {
+        labels['uphoto_label_' + i] = photoForm.selectedLabels.includes(i) ? 1 : 0;
+      }
+      try {
+        const resp = await axios.post(`/api/user/${uid}/uphoto/upload`, {
+          uid,
+          uphoto: photoForm.uphoto,
+          uphoto_title: photoForm.uphoto_title,
+          uphoto_description: photoForm.uphoto_description,
+          activity_id: activityIds.join(','),
+          uphoto_status: photoForm.uphoto_status,
+          ...labels,
+          pointset: -10
+        });
+        if (resp.data && resp.data.success) {
+          alert('上传作品成功');
+          photoForm.uphoto_title = '';
+          photoForm.uphoto_description = '';
+          photoForm.activities = [{ id: '', name: '', error: '' }];
+          photoForm.showQueryButton = false;
+          photoForm.uphoto_status = 1;
+          photoForm.selectedLabels = [];
+          photoForm.uphoto = '';
+          loadUserPhotos();
+        } else {
+          alert('上传作品失败：' + JSON.stringify(resp.data));
+        }
+      } catch (e) {
+        alert('上传作品失败：' + e);
+      }
+    };
+
+    const updatePhoto = async () => {
+      if (!editForm.uphoto_title) {
+        alert('请输入作品标题');
+        return;
+      }
+      
+      // 收集并排序活动ID
+      const activityIds = editForm.activities
+        .map(activity => activity.id.trim())
+        .filter(id => id !== '')
+        .map(id => parseInt(id))
+        .filter(id => !isNaN(id))
+        .sort((a, b) => b - a); // 从大到小排序
+      
+      // 检查并查询活动ID
+      await queryEditActivities();
+      
+      // 检查是否有活动查询失败
+      const hasError = editForm.activities.some(activity => activity.id && activity.error);
+      if (hasError) {
+        alert('请检查活动ID是否正确');
+        return;
+      }
+      
+      const labels = {};
+      for (let i = 0; i <= 9; i++) {
+        labels['uphoto_label_' + i] = editForm.selectedLabels.includes(i) ? 1 : 0;
+      }
+      try {
+        const resp = await axios.post(`/api/user/${uid}/uphoto/manage`, {
+          uid,
+          upthoto_id: editForm.upthoto_id,
+          uphoto: editForm.uphoto,
+          uphoto_title: editForm.uphoto_title,
+          uphoto_description: editForm.uphoto_description,
+          activity_id: activityIds.join(','),
+          uphoto_status: editForm.uphoto_status,
+          ...labels,
+          pointset: -10
+        });
+        if (resp.data && resp.data.success) {
+          alert('作品修改成功');
+          tab.value = 'photoList';
+          loadUserPhotos();
+        } else {
+          alert('作品修改失败：' + JSON.stringify(resp.data));
+        }
+      } catch (e) {
+        alert('作品修改失败：' + e);
+      }
+    };
+
+    const loadUserInfo = async () => {
+      try {
+        const resp = await axios.get('/api/user/info', { params: { uid } });
+        const data = resp.data;
+        if (data && data.success) {
+          if (data.loginname) form.loginname = data.loginname;
+          if (data.username) form.username = data.username;
+          if (data.email) form.email = data.email;
+          if (data.personal_profile) form.personal_profile = data.personal_profile;
+          if (data.permission !== undefined && data.permission !== null) form.permission = data.permission;
+          if (data.birthday) form.birthday = String(data.birthday).slice(0, 10);
+          if (data.avatar) {
+            const path = String(data.avatar).replace(/^\/+/, '');
+            avatarPreview.value = '/' + path;
+            localStorage.setItem('pwps_avatar', path);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const loadPointInfo = async () => {
+      try {
+        const resp = await axios.get('/api/user/info', { params: { uid } });
+        if (resp.data && resp.data.success && typeof resp.data.point === 'number') {
+          point.value = resp.data.point;
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const pickAvatar = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        form.avatar = reader.result;
+        avatarPreview.value = reader.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    const save = async () => {
+      try {
+        const resp = await axios.put('/api/user/update', {
+          uid: form.uid,
+          loginname: form.loginname,
+          username: form.username,
+          avatar: form.avatar || null,
+          email: form.email,
+          personal_profile: form.personal_profile,
+          permission: form.permission,
+          birthday: form.birthday || null
+        });
+        if (resp.data && resp.data.success) {
+          alert('保存成功');
+          const expectedPath = `picture/avatar/uid_${uid}.png`;
+          localStorage.setItem('pwps_avatar', expectedPath);
+        } else {
+          alert('保存失败');
+        }
+      } catch (e) {
+        alert('请求失败：' + e);
+      }
+    };
+
+    const changePassword = async () => {
+      if (!passwordForm.currentPassword) {
+        alert('请输入当前密码');
+        return;
+      }
+      if (!passwordForm.newPassword) {
+        alert('请输入新密码');
+        return;
+      }
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        alert('两次输入的密码不一致');
+        return;
+      }
+      if (passwordForm.newPassword.length < 6) {
+        alert('新密码长度不能少于6位');
+        return;
+      }
+      try {
+        const resp = await axios.post('/api/user/password/change', {
+          uid: uid,
+          oldPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        });
+        if (resp.data && resp.data.success) {
+          alert('密码修改成功');
+          passwordForm.currentPassword = '';
+          passwordForm.newPassword = '';
+          passwordForm.confirmPassword = '';
+        } else {
+          alert('密码修改失败：' + (resp.data.message || '请检查当前密码是否正确'));
+        }
+      } catch (e) {
+        alert('请求失败：' + e);
+      }
+    };
+
+    const doDelete = async () => {
+      try {
+        const resp = await axios.delete('/api/user/delete', { data: { uid, permission } });
+        if (resp.data && resp.data.success) {
+          alert('注销成功');
+          localStorage.clear();
+          window.location.href = '/user/login';
+        } else {
+          alert('注销失败（管理员不允许注销或uid不存在）');
+        }
+      } catch (e) {
+        alert('请求失败：' + e);
+      }
+    };
+
+    const logout = () => {
+      localStorage.clear();
+      window.location.href = '/user/login';
+    };
+
+    const goMain = () => window.location.href = '/main';
+
+    if (!uid) window.location.href = '/user/login';
+    loadUserInfo();
+    loadPointInfo();
+
+    return {
+      uid, permission, tab, point, form, avatarPreview, passwordForm,
+      userPhotos, userActivities, photoForm, activityForm, editForm, editActivityForm, labelDefs,
+      pickAvatar, save, changePassword, doDelete, logout, goMain,
+      photoForm, activityForm, pickPhoto, pickEditPhoto, pickActivityCover, pickEditActivityCover,
+      createActivity, updateActivity, uploadPhoto, updatePhoto, loadUserPhotos, loadUserActivities,
+      photoUrl, coverUrl, formatDate, extractTags, editPhoto, editActivity, goActivityDetail,
+      addActivityInput, removeActivityInput, addEditActivityInput, removeEditActivityInput, 
+      queryActivities, queryEditActivities
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

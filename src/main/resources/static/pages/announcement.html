@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>公告列表 - 公益摄影交流平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#020617; color:#e5e7eb; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:#020617; border-bottom:1px solid rgba(148,163,184,.25); }
+    .logo { font-weight:800; cursor:pointer; color:#fff; }
+    .nav { display:flex; gap:12px; align-items:center; }
+    .btn { padding:8px 12px; border-radius:10px; background:rgba(15,23,42,1); border:1px solid rgba(148,163,184,.4); color:#e5e7eb; cursor:pointer; font-size:14px; }
+    .btn.primary { background:#3b82f6; border:none; }
+    .profile { display:flex; align-items:center; gap:10px; cursor:pointer; }
+    .avatar { width:34px; height:34px; border-radius:12px; background:rgba(15,23,42,1); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .avatar img { width:100%; height:100%; object-fit:cover; }
+    .container { max-width:960px; margin:18px auto; padding:0 18px; }
+    .card { background:rgba(15,23,42,1); border-radius:16px; padding:16px; border:1px solid rgba(30,64,175,.7); margin-bottom:16px; cursor:pointer; transition:transform 0.2s; }
+    .card:hover { transform:translateY(-2px); }
+    .title { font-size:18px; font-weight:700; margin:0 0 8px 0; }
+    .muted { opacity:.8; font-size:13px; }
+    .content { margin-top:12px; line-height:1.6; white-space:pre-wrap; }
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:100; }
+    .modal-content { background:#0f172a; border-radius:16px; padding:24px; max-width:600px; width:90%; max-height:80vh; overflow-y:auto; }
+    .modal-title { font-size:20px; font-weight:700; margin-bottom:12px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { display:block; margin-bottom:6px; font-size:14px; }
+    .form-input { width:100%; padding:10px; border-radius:10px; border:1px solid rgba(148,163,184,.4); background:#020617; color:#e5e7eb; font-size:14px; }
+    textarea.form-input { min-height:120px; resize:vertical; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="logo" @click="goMain">公益摄影交流平台</div>
+    <div class="nav">
+      <button class="btn" @click="goGround">广场</button>
+      <button class="btn primary" @click="goActivity">活动</button>
+      <button class="btn" @click="goAnnouncements">公告</button>
+    </div>
+    <div class="profile" @click="goProfile">
+      <div class="avatar">
+        <span v-if="!avatarUrl">?</span>
+        <img v-else :src="avatarUrl" alt="avatar" />
+      </div>
+      <div>
+        <div style="font-weight:700">{{ displayName }}</div>
+        <div class="muted">{{ permissionText }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h2 style="margin:0;">公告列表</h2>
+      <button v-if="permission === 0" class="btn primary" @click="showCreateModal = true">发布公告</button>
+    </div>
+
+    <div v-if="announcements.length === 0" class="card">
+      <p class="muted" style="text-align:center; padding:20px 0;">暂无公告</p>
+    </div>
+
+    <div v-for="a in announcements" :key="a.id" class="card" @click="viewDetail(a)">
+      <h3 class="title">{{ a.title }}</h3>
+      <div class="muted">{{ formatDate(a.created_at) }}</div>
+      <div class="content" style="max-height:60px; overflow:hidden; text-overflow:ellipsis;">{{ a.content }}</div>
+    </div>
+  </div>
+
+  <div v-if="showDetailModal" class="modal" @click.self="showDetailModal = false">
+    <div class="modal-content">
+      <h3 class="modal-title">{{ currentAnnouncement.title }}</h3>
+      <div class="muted" style="margin-bottom:12px;">{{ formatDate(currentAnnouncement.created_at) }}</div>
+      <div class="content">{{ currentAnnouncement.content }}</div>
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button class="btn" @click="showDetailModal = false">关闭</button>
+        <template v-if="permission === 0">
+          <button class="btn" @click="editAnnouncement(currentAnnouncement)">编辑</button>
+          <button class="btn" style="background:rgba(239,68,68,.2); border-color:#ef4444;" @click="deleteAnnouncement(currentAnnouncement.id)">删除</button>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="showCreateModal" class="modal" @click.self="showCreateModal = false">
+    <div class="modal-content">
+      <h3 class="modal-title">{{ editMode ? '编辑公告' : '发布公告' }}</h3>
+      <div class="form-group">
+        <label class="form-label">标题</label>
+        <input class="form-input" v-model="form.title" placeholder="请输入公告标题" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">内容</label>
+        <textarea class="form-input" v-model="form.content" placeholder="请输入公告内容"></textarea>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn primary" @click="submitForm">提交</button>
+        <button class="btn" @click="showCreateModal = false">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed } = Vue;
+
+createApp({
+  setup() {
+    const uid = Number(localStorage.getItem('pwps_uid') || 0);
+    const permission = Number(localStorage.getItem('pwps_permission') || 2);
+    const loginname = localStorage.getItem('pwps_loginname') || '';
+    const avatarPath = localStorage.getItem('pwps_avatar') || '';
+
+    const displayName = computed(() => uid ? (loginname || ('用户' + uid)) : '游客模式');
+    const permissionText = computed(() => permission === 0 ? '管理员' : (permission === 1 ? '普通用户' : '游客'));
+    const avatarUrl = computed(() => avatarPath ? ('/' + avatarPath.replace(/^\/+/, '')) : '');
+
+    const announcements = ref([]);
+    const showDetailModal = ref(false);
+    const showCreateModal = ref(false);
+    const currentAnnouncement = ref(null);
+    const editMode = ref(false);
+    const form = ref({ id: null, title: '', content: '' });
+
+    const formatDate = (d) => {
+      try {
+        const dt = new Date(d);
+        if (Number.isNaN(dt.getTime())) return String(d);
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')} ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
+      } catch { return String(d); }
+    };
+
+    const load = async () => {
+      try {
+        const resp = await axios.get('/api/main/announcement/list');
+        if (resp.data && resp.data.success) {
+          announcements.value = resp.data.data || [];
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    const viewDetail = (a) => {
+      currentAnnouncement.value = a;
+      showDetailModal.value = true;
+    };
+
+    const editAnnouncement = (a) => {
+      editMode.value = true;
+      form.value = { id: a.id, title: a.title, content: a.content };
+      showDetailModal.value = false;
+      showCreateModal.value = true;
+    };
+
+    const deleteAnnouncement = async (id) => {
+      if (!confirm('确定要删除此公告吗？')) return;
+      try {
+        const resp = await axios.post('/api/admin/announcement/delete', { id, uid, permission });
+        if (resp.data && resp.data.success) {
+          load();
+          showDetailModal.value = false;
+        } else {
+          alert(resp.data.message || '删除失败');
+        }
+      } catch (e) {
+        alert('删除失败');
+      }
+    };
+
+    const submitForm = async () => {
+      if (!form.value.title.trim() || !form.value.content.trim()) {
+        alert('标题和内容不能为空');
+        return;
+      }
+      try {
+        const url = editMode.value ? '/api/admin/announcement/update' : '/api/admin/announcement/create';
+        const payload = { ...form.value, uid, permission };
+        const resp = await axios.post(url, payload);
+        if (resp.data && resp.data.success) {
+          showCreateModal.value = false;
+          form.value = { id: null, title: '', content: '' };
+          editMode.value = false;
+          load();
+        } else {
+          alert(resp.data.message || '操作失败');
+        }
+      } catch (e) {
+        alert('操作失败');
+      }
+    };
+
+    const goMain = () => window.location.href = '/main';
+    const goGround = () => window.location.href = '/main/ground/search/s0';
+    const goActivity = () => window.location.href = '/main/activity/search';
+    const goAnnouncements = () => window.location.href = '/main/announcement';
+    const goProfile = () => {
+      if (!uid) { window.location.href = '/user/login'; return; }
+      if (permission === 0) window.location.href = `/main/admin/edit/${uid}`;
+      else window.location.href = `/main/user/edit/${uid}`;
+    };
+
+    load();
+
+    return {
+      displayName, permissionText, avatarUrl,
+      uid, permission,
+      announcements, showDetailModal, showCreateModal, currentAnnouncement, editMode, form,
+      formatDate, load, viewDetail, editAnnouncement, deleteAnnouncement, submitForm,
+      goMain, goGround, goActivity, goAnnouncements, goProfile
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

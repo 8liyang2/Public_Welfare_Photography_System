@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.pwps.mapper.ActivityMapper">
+
+    <resultMap id="ActivityResultMap" type="com.example.pwps.entity.Activity">
+        <id     column="activity_id"            property="activityId"/>
+        <result column="created_at"             property="createdAt"/>
+        <result column="activity_name"          property="activityName"/>
+        <result column="activity_description"   property="activityDescription"/>
+        <result column="uid"                    property="uid"/>
+        <result column="username"               property="username"/>
+        <result column="permission"             property="permission"/>
+        <result column="activity_category"      property="activityCategory"/>
+        <result column="activity_status"        property="activityStatus"/>
+        <result column="activity_location"      property="activityLocation"/>
+        <result column="activity_time_early"    property="activityTimeEarly"/>
+        <result column="activity_time_end"      property="activityTimeEnd"/>
+        <result column="activity_picture_id"    property="activityPictureId"/>
+        <result column="activity_cover_image"  property="activityCoverImage"/>
+        <result column="activity_like_number"   property="activityLikeNumber"/>
+        <result column="activity_comment_number" property="activityCommentNumber"/>
+        <result column="activity_review_status" property="activityReviewStatus"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.pwps.entity.Activity" useGeneratedKeys="true" keyProperty="activityId">
+        INSERT INTO activity (
+            created_at,
+            activity_name,
+            activity_description,
+            uid,
+            username,
+            permission,
+            activity_category,
+            activity_status,
+            activity_location,
+            activity_time_early,
+            activity_time_end,
+            activity_picture_id,
+            activity_cover_image,
+            activity_like_number,
+            activity_comment_number,
+            activity_review_status
+        ) VALUES (
+            NOW(),
+            #{activityName},
+            #{activityDescription},
+            #{uid},
+            #{username},
+            #{permission},
+            #{activityCategory},
+            #{activityStatus},
+            #{activityLocation},
+            #{activityTimeEarly},
+            #{activityTimeEnd},
+            #{activityPictureId},
+            #{activityCoverImage},
+            #{activityLikeNumber},
+            #{activityCommentNumber},
+            #{activityReviewStatus}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.example.pwps.entity.Activity">
+        UPDATE activity
+        SET
+            activity_name = #{activityName},
+            activity_description = #{activityDescription},
+            activity_cover_image = #{activityCoverImage},
+            activity_location = #{activityLocation},
+            activity_time_early = #{activityTimeEarly},
+            activity_time_end = #{activityTimeEnd},
+            activity_category = #{activityCategory},
+            activity_status = #{activityStatus},
+            activity_review_status = #{activityReviewStatus}
+        WHERE activity_id = #{activityId}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM activity WHERE activity_id = #{activityId}
+    </delete>
+
+    <select id="findById" resultMap="ActivityResultMap">
+        SELECT * FROM activity WHERE activity_id = #{activityId}
+    </select>
+
+    <select id="findByUid" resultMap="ActivityResultMap">
+        SELECT * FROM activity WHERE uid = #{uid}
+    </select>
+
+    <select id="findReviewPending" resultMap="ActivityResultMap">
+        SELECT * FROM activity WHERE activity_review_status = 1 ORDER BY activity_id ASC
+    </select>
+
+    <select id="searchMain" resultMap="ActivityResultMap">
+        SELECT * FROM activity
+        <where>
+            <if test="category != null">
+                AND activity_category = #{category}
+            </if>
+            <if test="startDate != null">
+                AND activity_time_early &gt;= #{startDate}
+            </if>
+            <if test="endDate != null">
+                AND activity_time_end &lt;= #{endDate}
+            </if>
+            AND activity_review_status = 2
+        </where>
+        <choose>
+            <when test="sort == 'hottest'">
+                ORDER BY activity_like_number DESC, activity_comment_number DESC, activity_id DESC
+            </when>
+            <when test="sort == 'latest'">
+                ORDER BY created_at DESC
+            </when>
+            <otherwise>
+                ORDER BY created_at DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <update id="updateReviewStatus">
+        UPDATE activity
+        SET activity_review_status = #{reviewStatus},
+            activity_status = #{activityStatus}
+        WHERE activity_id = #{activityId}
+    </update>
+
+    <update id="updatePictureIdAndCover">
+        UPDATE activity
+        SET activity_picture_id = #{activityPictureId},
+            activity_cover_image = #{activityCoverImage}
+        WHERE activity_id = #{activityId}
+    </update>
+
+    <update id="updateLikeAndComment">
+        UPDATE activity
+        SET
+            activity_like_number = activity_like_number + #{likeDelta},
+            activity_comment_number = activity_comment_number + #{commentDelta}
+        WHERE activity_id = #{activityId}
+    </update>
+
+    <select id="findAll" resultMap="ActivityResultMap">
+        SELECT * FROM activity
+    </select>
+
+</mapper>
+

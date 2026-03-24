@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作品详情</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1220; color:#e5e7eb; }
+        .top { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:#0f172a; border-bottom:1px solid rgba(255,255,255,.08); }
+        .logo { font-weight:800; cursor:pointer; color:#fff; }
+        .nav { display:flex; gap:12px; align-items:center; }
+        .btn { padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); color:#fff; cursor:pointer; font-size:14px; }
+        .btn.primary { background:#3b82f6; border:none; }
+        .container { max-width:960px; margin:18px auto; padding:0 18px; }
+        .card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; margin-bottom:16px; }
+        .muted { opacity:.8; font-size:13px; }
+        .cover { width:100%; border-radius:14px; overflow:hidden; background:radial-gradient(circle at top, #1f2937, #020617); margin-bottom:12px; cursor:pointer; }
+        .cover img { width:100%; max-height:70vh; min-height:500px; object-fit:contain; display:block; background:#000; }
+        .title { font-size:20px; font-weight:700; margin:0 0 6px 0; }
+        .row { display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; align-items:center; }
+        .avatar { width:34px; height:34px; border-radius:12px; background:rgba(255,255,255,.1); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .avatar img { width:100%; height:100%; object-fit:cover; }
+        .tag { display:inline-block; padding:3px 8px; border-radius:999px; font-size:12px; background:rgba(59,130,246,.15); color:#bfdbfe; margin-right:6px; margin-bottom:6px; }
+        .stat { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:10px; background:rgba(255,255,255,.06); cursor:pointer; }
+        .comment-section { margin-top:16px; }
+        .comment-input { width:100%; padding:10px; border-radius:10px; border:none; background:rgba(255,255,255,.06); color:#fff; font-size:14px; }
+        .comment-item { padding:12px; border-radius:10px; background:rgba(255,255,255,.03); margin-top:8px; }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay img {
+            max-width: 95vw;
+            max-height: 95vh;
+            object-fit: contain;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            transition: background 0.3s;
+        }
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="top">
+        <div class="row" style="gap: 8px;">
+            <button class="btn" @click="goBack">← 返回</button>
+            <div class="logo" @click="goMain">🎨 作品详情</div>
+        </div>
+        <div class="nav">
+            <button class="btn" @click="goGround">广场</button>
+            <button class="btn primary" @click="goActivity">活动</button>
+        </div>
+        <div class="row" @click="goProfile" style="cursor:pointer;">
+            <div class="avatar">
+                <span v-if="!avatarUrl">?</span>
+                <img v-else :src="avatarUrl" alt="avatar" />
+            </div>
+            <div>
+                <div style="font-weight:700;">{{ displayName }}</div>
+                <div class="muted">{{ permissionText }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" v-if="loaded && data">
+        <div class="card">
+            <div class="cover" v-if="data.uphoto" @click="showImageModal = true">
+                <img :src="photoUrl(data.uphoto)" alt="作品图片" />
+            </div>
+            <h1 class="title">{{ data.uphoto_title || '未命名作品' }}</h1>
+            
+            <div class="row">
+                <div class="avatar" style="width:28px; height:28px; cursor:pointer;" @click="goCreator">
+                    <span v-if="!data.avatar">?</span>
+                    <img v-else :src="photoUrl(data.avatar)" alt="avatar" />
+                </div>
+                <span style="font-size:14px;">{{ data.username || ('用户' + data.uid) }}</span>
+            </div>
+
+            <div style="margin-top:12px;">
+                <span v-for="(label, idx) in activeLabels" :key="idx" class="tag">{{ labelNames[idx] }}</span>
+            </div>
+
+            <p class="muted" style="margin-top:12px; white-space:pre-wrap;">{{ data.uphoto_description || '暂无描述' }}</p>
+
+            <div v-if="data.activity_id && data.activity_name" style="margin-top:12px; padding:10px; border-radius:10px; background:rgba(59,130,246,.1);">
+                <span class="muted">参与活动：</span>
+                <a :href="'/main/activity/' + data.activity_id" style="color:#60a5fa; text-decoration:none;">{{ data.activity_name }}</a>
+            </div>
+
+            <div class="row" style="margin-top:16px;">
+                <div class="stat" @click="toggleLike">
+                    <span>{{ liked ? '💖' : '❤️' }}</span>
+                    <span>{{ likeCount }}</span>
+                </div>
+                <div class="stat" @click="showComments = !showComments; if(showComments) loadComments();">
+                    <span>💬</span>
+                    <span>{{ commentCount }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card comment-section" v-if="showComments">
+            <h3 style="margin:0 0 12px 0;">评论</h3>
+            <textarea class="comment-input" v-model="commentText" placeholder="写下你的评论..." rows="3" :disabled="!uid || permission === 2"></textarea>
+            <button class="btn primary" style="margin-top:8px;" @click="submitComment" :disabled="!uid || permission === 2">发送评论</button>
+            
+            <div v-if="comments.length" style="margin-top:16px;">
+              <div v-for="c in comments" :key="c.id" class="comment-item">
+                <div class="row">
+                  <div class="avatar" style="width:24px; height:24px;">
+                    <span v-if="!c.avatar">?</span>
+                    <img v-else :src="photoUrl(c.avatar)" alt="avatar" />
+                  </div>
+                  <span style="font-size:13px; font-weight:600;">{{ c.username || ('用户' + c.uid) }}</span>
+                  <span class="muted" style="font-size:12px;">{{ formatDate(c.created_at) }}</span>
+                </div>
+                <div style="margin-top:6px; font-size:14px;">{{ c.uphoto_comment_detail }}</div>
+              </div>
+            </div>
+            <div v-else class="muted" style="margin-top:16px; text-align:center;">暂无评论</div>
+        </div>
+    </div>
+
+    <div class="container" v-else-if="loaded && !data">
+        <div class="card">
+            <h3 style="margin:0 0 6px 0;">作品不存在或无权访问</h3>
+            <p class="muted">可能原因：作品未通过审核、已被删除、或仅作品创建者/管理员可见。</p>
+            <button class="btn" style="margin-top:10px;" @click="goBack">返回</button>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" v-if="showImageModal" @click.self="showImageModal = false">
+        <button class="modal-close" @click="showImageModal = false">×</button>
+        <img :src="photoUrl(data.uphoto)" alt="大图" />
+    </div>
+</div>
+
+<script>
+const { createApp, ref, computed } = Vue;
+
+createApp({
+    setup() {
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const uphotoId = Number(pathParts[pathParts.length - 1] || 0);
+
+        const uid = Number(localStorage.getItem('pwps_uid') || 0);
+        const permission = Number(localStorage.getItem('pwps_permission') || 2);
+        const loginname = localStorage.getItem('pwps_loginname') || '';
+        const avatarPath = localStorage.getItem('pwps_avatar') || '';
+
+        const displayName = computed(() => uid ? (loginname || ('用户' + uid)) : '游客模式');
+        const permissionText = computed(() => permission === 0 ? '管理员' : (permission === 1 ? '普通用户' : '游客'));
+        const avatarUrl = computed(() => avatarPath ? ('/' + avatarPath.replace(/^\//, '')) : '');
+
+        const data = ref(null);
+        const loaded = ref(false);
+        const liked = ref(false);
+        const likeCount = ref(0);
+        const commentCount = ref(0);
+        const showComments = ref(false);
+        const commentText = ref('');
+        const comments = ref([]);
+        const showImageModal = ref(false);
+
+        const labelNames = ['自然', '人像', '建筑', '风景', '动物', '城市', '艺术', '抽象', '黑白', '其他'];
+        const activeLabels = computed(() => {
+            if (!data.value) return [];
+            const labels = [
+                data.value.uphoto_label_0, data.value.uphoto_label_1, data.value.uphoto_label_2,
+                data.value.uphoto_label_3, data.value.uphoto_label_4, data.value.uphoto_label_5,
+                data.value.uphoto_label_6, data.value.uphoto_label_7, data.value.uphoto_label_8,
+                data.value.uphoto_label_9
+            ];
+            return labels.map((v, i) => v === 1 ? labelNames[i] : null).filter(Boolean);
+        });
+
+        const photoUrl = (path) => '/' + String(path || '').replace(/^\//, '');
+
+        const formatDate = (d) => {
+            try {
+                const dt = new Date(d);
+                if (Number.isNaN(dt.getTime())) return String(d);
+                return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            } catch { return String(d); }
+        };
+
+        const load = async () => {
+            if (!uphotoId) {
+                loaded.value = true;
+                data.value = null;
+                return;
+            }
+            try {
+                const resp = await axios.post(`/api/main/uphoto/${uphotoId}/get`, { uid: uid || 0 });
+                if (resp.data && resp.data.success) {
+                    data.value = resp.data;
+                    likeCount.value = resp.data.uphoto_like_number || 0;
+                    commentCount.value = resp.data.uphoto_comment_number || 0;
+                    liked.value = resp.data.liked || false;
+                } else {
+                    data.value = null;
+                }
+            } catch (e) {
+                console.error(e);
+                data.value = null;
+            } finally {
+                loaded.value = true;
+            }
+        };
+
+        const loadComments = async () => {
+            try {
+                const resp = await axios.get(`/api/main/uphoto/${uphotoId}/comments`);
+                if (resp.data && resp.data.success) {
+                    comments.value = resp.data.comments || [];
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        const toggleLike = async () => {
+            if (!uid || permission === 2) {
+                alert('游客不能点赞，请先登录。');
+                return;
+            }
+            try {
+                const resp = await axios.post('/api/main/uphoto/like', {
+                    uid,
+                    upthoto_id: uphotoId,
+                    like_change: liked.value ? -1 : 1
+                });
+                if (resp.data && resp.data.success) {
+                    liked.value = resp.data.liked !== undefined ? resp.data.liked : !liked.value;
+                    likeCount.value = resp.data.like_count !== undefined ? resp.data.like_count : (likeCount.value + (liked.value ? 1 : -1));
+                }
+            } catch (e) {
+                alert('操作失败');
+            }
+        };
+
+        const submitComment = async () => {
+            if (!uid || permission === 2) {
+                alert('游客不能评论，请先登录。');
+                return;
+            }
+            if (!commentText.value.trim()) {
+                alert('评论内容不能为空');
+                return;
+            }
+            try {
+                const resp = await axios.post('/api/main/uphoto/comment', {
+                    uid,
+                    upthoto_id: uphotoId,
+                    uphoto_comment_detail: commentText.value.trim()
+                });
+                if (resp.data && resp.data.success) {
+                    commentText.value = '';
+                    await loadComments();
+                    commentCount.value = resp.data.comment_count || comments.value.length;
+                }
+            } catch (e) {
+                alert('评论失败');
+            }
+        };
+
+        const goMain = () => window.location.href = '/main';
+        const goGround = () => window.location.href = '/main/ground/search/s0';
+        const goActivity = () => window.location.href = '/main/activity/search';
+        const goBack = () => {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                goGround();
+            }
+        };
+        const goProfile = () => {
+            if (!uid) { window.location.href = '/user/login'; return; }
+            if (permission === 0) window.location.href = `/main/admin/edit/${uid}`;
+            else window.location.href = `/main/user/edit/${uid}`;
+        };
+        const goCreator = () => {
+            if (data.value && data.value.uid) {
+                window.location.href = `/main/user/${data.value.uid}/display`;
+            }
+        };
+
+        load();
+
+        return {
+            displayName, permissionText, avatarUrl,
+            data, loaded, liked, likeCount, commentCount,
+            showComments, commentText, comments, showImageModal,
+            labelNames, activeLabels,
+            photoUrl, formatDate,
+            toggleLike, submitComment, loadComments,
+            goMain, goGround, goActivity, goBack, goProfile, goCreator,
+            uid, permission
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

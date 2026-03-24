@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管理员后台 - 公益摄影交流平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1220; color:#e5e7eb; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:#0f172a; border-bottom:1px solid rgba(255,255,255,.08); }
+    .logo { font-weight:800; cursor:pointer; color:#fff; }
+    .wrap { max-width: 1200px; margin: 18px auto; padding: 0 18px; display:grid; grid-template-columns: 240px 1fr; gap:16px; }
+    .card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; }
+    .menu button { width:100%; text-align:left; padding:10px 12px; margin:6px 0; border-radius:12px; border:1px solid rgba(255,255,255,.10); background:rgba(255,255,255,.03); color:#fff; cursor:pointer; }
+    .menu button.active { background:#f59e0b; border:none; color:#111827; }
+    .hint { opacity:.8; font-size: 13px; }
+    textarea { width:100%; min-height:120px; border-radius:10px; border:none; padding:8px 10px; font-size:13px; resize:vertical; box-sizing: border-box; }
+    .item-list { margin-top:12px; }
+    .item-card { display:flex; gap:12px; padding:12px; background:rgba(255,255,255,.05); border-radius:12px; margin-bottom:8px; }
+    .item-thumb { width:80px; height:60px; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; }
+    .item-thumb img { width:100%; height:100%; object-fit:cover; }
+    .item-info { flex:1; min-width:0; }
+    .item-title { font-weight:600; font-size:14px; }
+    .item-meta { font-size:12px; opacity:.8; margin-top:4px; }
+    .btn { padding:8px 12px; border-radius:8px; border:none; cursor:pointer; font-weight:600; font-size:13px; }
+    .btn.primary { background:#10b981; color:#fff; }
+    .btn.danger { background:#ef4444; color:#fff; }
+    .btn.warning { background:#f59e0b; color:#fff; }
+    .btn-group { display:flex; gap:8px; margin-top:8px; }
+    .empty-list { padding:20px; text-align:center; opacity:.7; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; margin-right:4px; }
+    .badge.pending { background:rgba(245,158,11,.2); color:#fbbf24; }
+    .badge.pass { background:rgba(16,185,129,.2); color:#34d399; }
+    .badge.reject { background:rgba(239,68,68,.2); color:#f87171; }
+    .badge.admin { background:rgba(239,68,68,.2); color:#f87171; }
+    .badge.user { background:rgba(59,130,246,.2); color:#60a5fa; }
+    .badge.guest { background:rgba(107,114,128,.2); color:#9ca3af; }
+    .form-group { margin-bottom:12px; }
+    .form-group label { display:block; font-size:13px; margin-bottom:4px; }
+    .form-group input, .form-group select { width:100%; padding:8px; border-radius:8px; border:none; font-size:13px; box-sizing: border-box; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; text-align:left; border-bottom:1px solid rgba(255,255,255,.1); font-size:13px; }
+    th { opacity:.7; font-weight:600; }
+    .action-cell { display:flex; gap:8px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="logo" @click="goMain">公益摄影交流平台</div>
+    <div class="hint">管理员后台 | uid={{ uid }}</div>
+  </div>
+
+  <div class="wrap">
+    <div class="card menu">
+      <div style="font-weight:800; margin-bottom:8px;">管理员菜单</div>
+      <button :class="{active: tab==='uphoto'}" @click="tab='uphoto'; loadPendingPhotos()">作品审核管理</button>
+      <button :class="{active: tab==='activity'}" @click="tab='activity'; loadPendingActivities()">活动审核管理</button>
+      <button :class="{active: tab==='ban'}" @click="tab='ban'; loadAllUsers()">账号异常管理</button>
+      <button :class="{active: tab==='perm'}" @click="tab='perm'; loadAllUsers()">权限修改</button>
+      <button :class="{active: tab==='comment-activity'}" @click="tab='comment-activity'; loadActivityComments()">活动评论管理</button>
+      <button :class="{active: tab==='comment-uphoto'}" @click="tab='comment-uphoto'; loadUphotoComments()">作品评论管理</button>
+      <button :class="{active: tab==='announce'}" @click="tab='announce'">公告编辑</button>
+      <button :class="{active: tab==='image-cleanup'}" @click="tab='image-cleanup'">图片清理</button>
+      <button @click="logout">退出登录</button>
+    </div>
+
+    <!-- 作品审核管理 -->
+    <div class="card" v-if="tab==='uphoto'">
+      <h3 style="margin:0 0 6px 0;">作品审核管理</h3>
+      <div class="hint">审核用户上传的作品</div>
+      
+      <div class="item-list" v-if="pendingPhotos.length">
+        <div v-for="photo in pendingPhotos" :key="photo.upthoto_id" class="item-card">
+          <div class="item-thumb">
+            <img v-if="photo.uphoto" :src="photoUrl(photo.uphoto)" alt="photo" />
+            <span v-else>无图</span>
+          </div>
+          <div class="item-info">
+            <div class="item-title" @click="goToUphoto(photo.upthoto_id)">{{ photo.uphoto_title || '未命名作品' }}</div>
+            <div class="item-meta">作者：{{ photo.username || '用户' + (photo.uid || '0') }}</div>
+            <div class="item-meta">描述：{{ photo.uphoto_description || '无' }}</div>
+            <div class="btn-group">
+              <button class="btn primary" @click="reviewPhoto(photo.upthoto_id, 2)">通过</button>
+              <button class="btn danger" @click="reviewPhoto(photo.upthoto_id, 0)">拒绝</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-list">暂无待审核作品</div>
+    </div>
+
+    <!-- 活动审核管理 -->
+    <div class="card" v-if="tab==='activity'">
+      <h3 style="margin:0 0 6px 0;">活动审核管理</h3>
+      <div class="hint">审核用户创建的活动</div>
+      
+      <div class="item-list" v-if="pendingActivities.length">
+        <div v-for="activity in pendingActivities" :key="activity.activity_id" class="item-card">
+          <div class="item-thumb">
+            <img v-if="activity.activity_cover_image" :src="coverUrl(activity.activity_cover_image)" alt="cover" />
+            <span v-else>无封面</span>
+          </div>
+          <div class="item-info">
+            <div class="item-title" @click="goToActivity(activity.activity_id)">{{ activity.activity_name || '未命名活动' }}</div>
+            <div class="item-meta">分类：{{ catText(activity.activity_category) }}</div>
+            <div class="item-meta">发起人：{{ activity.username || '用户' + activity.uid }}</div>
+            <div class="btn-group">
+              <button class="btn primary" @click="reviewActivity(activity.activity_id, 2)">通过</button>
+              <button class="btn danger" @click="reviewActivity(activity.activity_id, 0)">拒绝</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-list">暂无待审核活动</div>
+    </div>
+
+    <!-- 账号异常管理 -->
+    <div class="card" v-if="tab==='ban'">
+      <h3 style="margin:0 0 6px 0;">账号异常管理</h3>
+      <div class="hint">封禁用户账号，被封禁用户将成为游客（permission=2）</div>
+      
+      <div class="item-list" v-if="allUsers.length">
+        <table>
+          <thead>
+            <tr>
+              <th>UID</th>
+              <th>登录名</th>
+              <th>昵称</th>
+              <th>当前权限</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="user in allUsers" :key="user.uid">
+              <td>{{ user.uid }}</td>
+              <td>{{ user.loginname }}</td>
+              <td>{{ user.username || '-' }}</td>
+              <td>
+                <span class="badge" :class="permClass(user.permission)">{{ permText(user.permission) }}</span>
+              </td>
+              <td>
+                <button v-if="user.permission !== 2" class="btn danger" @click="banUser(user.uid)">封禁</button>
+                <span v-else class="hint">已封禁</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty-list">暂无用户数据</div>
+    </div>
+
+    <!-- 权限修改 -->
+    <div class="card" v-if="tab==='perm'">
+      <h3 style="margin:0 0 6px 0;">权限修改</h3>
+      <div class="hint">修改用户权限等级：0=管理员，1=普通用户，2=游客</div>
+      
+      <div class="form-group">
+        <label>输入用户UID（快速定位）</label>
+        <input type="number" v-model="permForm.targetUidDirect" placeholder="请输入用户UID" />
+      </div>
+      
+      <div class="form-group">
+        <label>或选择用户</label>
+        <select v-model="permForm.targetUid">
+          <option value="">请选择用户</option>
+          <option v-for="user in allUsers" :key="user.uid" :value="user.uid">
+            {{ user.loginname }} ({{ user.username || '用户' + user.uid }})
+          </option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>新权限等级</label>
+        <select v-model="permForm.targetPerm">
+          <option :value="0">管理员</option>
+          <option :value="1">普通用户</option>
+          <option :value="2">游客</option>
+        </select>
+      </div>
+      
+      <button class="btn warning" @click="changePermission">修改权限</button>
+    </div>
+
+    <!-- 评论管理 -->
+    <div class="card" v-if="tab==='comment'">
+      <h3 style="margin:0 0 6px 0;">评论管理</h3>
+      <div class="hint">删除违规评论</div>
+      <div class="empty-list">评论管理功能待完善，需接入评论数据后再实现</div>
+    </div>
+
+    <!-- 活动评论管理 -->
+    <div class="card" v-if="tab==='comment-activity'">
+      <h3 style="margin:0 0 6px 0;">活动评论管理</h3>
+      <div class="hint">管理活动相关评论</div>
+      
+      <div class="form-group">
+        <label>搜索关键字</label>
+        <input type="text" v-model="commentSearchKeyword" placeholder="输入评论内容关键字" />
+      </div>
+      
+      <div class="form-group" style="display:flex; gap:8px; align-items:center;">
+        <button class="btn primary" @click="loadActivityComments()">搜索</button>
+        <div style="flex:1; text-align:right;">
+          <span class="hint">共 {{ activityCommentTotal }} 条评论</span>
+        </div>
+      </div>
+      
+      <div class="item-list" v-if="activityComments.length">
+        <div v-for="comment in activityComments" :key="comment.id" class="item-card">
+          <div class="item-info" style="flex:1;">
+            <div class="item-title">评论ID: {{ comment.id }}</div>
+            <div class="item-meta">用户：{{ comment.username }} (UID: {{ comment.uid }})</div>
+            <div class="item-meta">活动ID：<a href="#" @click.prevent="goToActivity(comment.activity_id)">{{ comment.activity_id }}</a></div>
+            <div class="item-meta" style="margin-top:8px;">{{ comment.comment_detail }}</div>
+            <div class="btn-group" style="margin-top:8px;">
+              <button class="btn danger" @click="deleteActivityComment(comment.id)">删除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-list">暂无评论</div>
+      
+      <!-- 分页 -->
+      <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; gap:8px;">
+          <button class="btn" @click="activityCommentPage > 1 && loadActivityComments(activityCommentPage - 1)" :disabled="activityCommentPage <= 1">上一页</button>
+          <button class="btn" @click="loadActivityComments(activityCommentPage + 1)" :disabled="activityCommentPage >= Math.ceil(activityCommentTotal / 50)">下一页</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="hint">页码：</span>
+          <input type="number" v-model="activityCommentPageInput" style="width:60px;" min="1" :max="Math.ceil(activityCommentTotal / 50)" />
+          <button class="btn primary" @click="loadActivityComments(Number(activityCommentPageInput))">跳转</button>
+        </div>
+        <div class="hint">第 {{ activityCommentPage }} / {{ Math.ceil(activityCommentTotal / 50) }} 页</div>
+      </div>
+    </div>
+
+    <!-- 作品评论管理 -->
+    <div class="card" v-if="tab==='comment-uphoto'">
+      <h3 style="margin:0 0 6px 0;">作品评论管理</h3>
+      <div class="hint">管理作品相关评论</div>
+      
+      <div class="form-group">
+        <label>搜索关键字</label>
+        <input type="text" v-model="commentSearchKeyword" placeholder="输入评论内容关键字" />
+      </div>
+      
+      <div class="form-group" style="display:flex; gap:8px; align-items:center;">
+        <button class="btn primary" @click="loadUphotoComments()">搜索</button>
+        <div style="flex:1; text-align:right;">
+          <span class="hint">共 {{ uphotoCommentTotal }} 条评论</span>
+        </div>
+      </div>
+      
+      <div class="item-list" v-if="uphotoComments.length">
+        <div v-for="comment in uphotoComments" :key="comment.id" class="item-card">
+          <div class="item-info" style="flex:1;">
+            <div class="item-title">评论ID: {{ comment.id }}</div>
+            <div class="item-meta">用户：{{ comment.username }} (UID: {{ comment.uid }})</div>
+            <div class="item-meta">作品ID：<a href="#" @click.prevent="goToUphoto(comment.upthoto_id)">{{ comment.upthoto_id }}</a></div>
+            <div class="item-meta" style="margin-top:8px;">{{ comment.comment_detail }}</div>
+            <div class="btn-group" style="margin-top:8px;">
+              <button class="btn danger" @click="deleteUphotoComment(comment.id)">删除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-list">暂无评论</div>
+      
+      <!-- 分页 -->
+      <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; gap:8px;">
+          <button class="btn" @click="uphotoCommentPage > 1 && loadUphotoComments(uphotoCommentPage - 1)" :disabled="uphotoCommentPage <= 1">上一页</button>
+          <button class="btn" @click="loadUphotoComments(uphotoCommentPage + 1)" :disabled="uphotoCommentPage >= Math.ceil(uphotoCommentTotal / 50)">下一页</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="hint">页码：</span>
+          <input type="number" v-model="uphotoCommentPageInput" style="width:60px;" min="1" :max="Math.ceil(uphotoCommentTotal / 50)" />
+          <button class="btn primary" @click="loadUphotoComments(Number(uphotoCommentPageInput))">跳转</button>
+        </div>
+        <div class="hint">第 {{ uphotoCommentPage }} / {{ Math.ceil(uphotoCommentTotal / 50) }} 页</div>
+      </div>
+    </div>
+
+    <!-- 公告编辑 -->
+    <div class="card" v-if="tab==='announce'">
+      <h3 style="margin:0 0 6px 0;">公告编辑</h3>
+      <div class="hint">用于编辑 /main 页面的公告内容</div>
+      <textarea v-model="announcement" placeholder="在此输入公告内容，每行一条公告……"></textarea>
+      <div style="margin-top:8px; display:flex; gap:10px; align-items:center;">
+        <button class="btn primary" @click="saveAnnouncement" :disabled="saving">
+          {{ saving ? '保存中…' : '保存公告' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 图片清理 -->
+    <div class="card" v-if="tab==='image-cleanup'">
+      <h3 style="margin:0 0 6px 0;">图片清理</h3>
+      <div class="hint">检查并删除未被数据库记录的图片文件（仅管理员可操作）</div>
+      
+      <div style="margin-top:12px;">
+        <button class="btn primary" @click="scanUnusedImages" :disabled="scanningImages">
+          {{ scanningImages ? '扫描中...' : '扫描未使用图片' }}
+        </button>
+        <button v-if="unusedImages.length > 0" class="btn danger" @click="confirmCleanup" style="margin-left:10px;">
+          删除所有未使用图片 ({{ unusedImages.length }} 张)
+        </button>
+      </div>
+
+      <div v-if="unusedImages.length > 0" style="margin-top:12px;">
+        <div class="hint" style="margin-bottom:8px;">以下图片未被数据库记录：</div>
+        <div style="max-height:300px; overflow-y:auto; background:rgba(0,0,0,.2); border-radius:8px; padding:8px;">
+          <div v-for="(img, idx) in unusedImages" :key="idx" style="padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.06); font-size:12px;">
+            {{ img }}
+          </div>
+        </div>
+      </div>
+      <div v-else-if="scanned" class="hint" style="margin-top:12px;">没有发现未使用的图片</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive } = Vue;
+
+createApp({
+  setup() {
+    const uid = Number(localStorage.getItem('pwps_uid') || 0);
+    const permission = Number(localStorage.getItem('pwps_permission') || 2);
+    if (!uid) window.location.href = '/user/login';
+    if (permission !== 0) {
+      alert('当前账号不是管理员，无法进入后台');
+      window.location.href = '/main';
+    }
+
+    const tab = ref('activity');
+    const announcement = ref('');
+    const saving = ref(false);
+
+    const pendingPhotos = ref([]);
+    const pendingActivities = ref([]);
+    const allUsers = ref([]);
+
+    const unusedImages = ref([]);
+    const scanningImages = ref(false);
+    const scanned = ref(false);
+
+    const permForm = reactive({
+      targetUid: '',
+      targetUidDirect: '',
+      targetPerm: 1
+    });
+
+    // 评论管理相关
+    const commentSearchKeyword = ref('');
+    const activityComments = ref([]);
+    const activityCommentTotal = ref(0);
+    const activityCommentPage = ref(1);
+    const activityCommentPageInput = ref(1);
+    const uphotoComments = ref([]);
+    const uphotoCommentTotal = ref(0);
+    const uphotoCommentPage = ref(1);
+    const uphotoCommentPageInput = ref(1);
+
+    const photoUrl = (path) => {
+      if (!path) return '';
+      return '/' + String(path).replace(/^\/+/, '');
+    };
+
+    const coverUrl = (path) => {
+      if (!path) return '';
+      return '/' + String(path).replace(/^\/+/, '');
+    };
+
+    const catText = (c) => {
+      if (c === 1) return '官方摄影征集活动';
+      if (c === 2) return '个人组织摄影活动';
+      if (c === 3) return '相册集';
+      return '未知类型';
+    };
+
+    const permText = (p) => {
+      if (p === 0) return '管理员';
+      if (p === 1) return '普通用户';
+      if (p === 2) return '游客';
+      return '未知';
+    };
+
+    const permClass = (p) => {
+      if (p === 0) return 'admin';
+      if (p === 1) return 'user';
+      if (p === 2) return 'guest';
+      return '';
+    };
+
+    const loadPendingPhotos = async () => {
+      try {
+        const resp = await axios.get('/api/admin/uphoto/review', { params: { uid, permission } });
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          pendingPhotos.value = resp.data.data;
+        }
+      } catch (e) {
+        console.error('加载作品失败:', e);
+      }
+    };
+
+    const loadPendingActivities = async () => {
+      try {
+        const resp = await axios.get('/api/admin/activity/review', { params: { uid, permission } });
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          pendingActivities.value = resp.data.data;
+        }
+      } catch (e) {
+        console.error('加载活动失败:', e);
+      }
+    };
+
+    const loadAllUsers = async () => {
+      try {
+        const resp = await axios.get('/api/admin/all_user/search', { params: { uid, permission } });
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          allUsers.value = resp.data.data;
+        }
+      } catch (e) {
+        console.error('加载用户失败:', e);
+      }
+    };
+
+    const reviewPhoto = async (uphotoId, status) => {
+      try {
+        const resp = await axios.get('/api/admin/uphoto/review/', {
+          params: { upthoto_id: uphotoId, uid, permission, uphoto_review_status: status }
+        });
+        if (resp.data && resp.data.success) {
+          alert(status === 2 ? '作品已通过审核' : '作品已拒绝');
+          loadPendingPhotos();
+        } else {
+          alert('操作失败');
+        }
+      } catch (e) {
+        alert('操作失败：' + e);
+      }
+    };
+
+    const reviewActivity = async (activityId, status) => {
+      try {
+        const resp = await axios.get('/api/admin/activity/review/', {
+          params: { activity_id: activityId, uid, permission, activity_review_status: status }
+        });
+        if (resp.data && resp.data.success) {
+          alert(status === 2 ? '活动已通过审核' : '活动已拒绝');
+          loadPendingActivities();
+        } else {
+          alert('操作失败');
+        }
+      } catch (e) {
+        alert('操作失败：' + e);
+      }
+    };
+
+    const banUser = async (banUid) => {
+      if (!confirm('确定要封禁该用户吗？')) return;
+      try {
+        const resp = await axios.post('/api/admin/user/ban', {
+          uid, permission, ban_uid: banUid
+        });
+        if (resp.data && resp.data.success) {
+          alert('用户已封禁');
+          loadAllUsers();
+        } else {
+          alert('操作失败');
+        }
+      } catch (e) {
+        alert('操作失败：' + e);
+      }
+    };
+
+    const changePermission = async () => {
+      const targetUid = permForm.targetUidDirect || permForm.targetUid;
+      if (!targetUid) {
+        alert('请选择用户或输入UID');
+        return;
+      }
+      try {
+        const resp = await axios.post('/api/admin/user/permission', {
+          uid, permission, target_uid: targetUid, target_perm: permForm.targetPerm
+        });
+        if (resp.data && resp.data.success) {
+          alert('权限修改成功');
+          loadAllUsers();
+          permForm.targetUid = '';
+          permForm.targetUidDirect = '';
+          permForm.targetPerm = 1;
+        } else {
+          alert('操作失败');
+        }
+      } catch (e) {
+        alert('操作失败：' + e);
+      }
+    };
+
+    const loadAnnouncement = async () => {
+      try {
+        const resp = await axios.get('/api/admin/announcement/list', { params: { uid, permission } });
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          announcement.value = resp.data.data.map(a => `${a.title}\n${a.content}`).join('\n\n---\n\n');
+        }
+      } catch (e) {
+        console.error('加载公告失败:', e);
+      }
+    };
+
+    const saveAnnouncement = async () => {
+      try {
+        saving.value = true;
+        const lines = announcement.value.split('\n').filter(l => l.trim());
+        if (lines.length === 0) {
+          alert('公告内容不能为空');
+          return;
+        }
+        const title = lines[0].trim();
+        const content = lines.slice(1).join('\n').trim();
+        
+        const existing = await axios.get('/api/admin/announcement/list', { params: { uid, permission } });
+        if (existing.data && existing.data.success && existing.data.data && existing.data.data.length > 0) {
+          const existingId = existing.data.data[0].id;
+          await axios.post('/api/admin/announcement/update', {
+            uid, permission, id: existingId, title, content, status: 1
+          });
+        } else {
+          await axios.post('/api/admin/announcement/create', {
+            uid, permission, title, content, status: 1
+          });
+        }
+        alert('公告已保存');
+      } catch (e) {
+        alert('公告保存失败：' + e);
+      } finally {
+        saving.value = false;
+      }
+    };
+
+    // 跳转到活动详情页
+    const goToActivity = (activityId) => {
+      window.open(`/main/activity/${activityId}`, '_blank');
+    };
+
+    // 跳转到作品详情页
+    const goToUphoto = (uphotoId) => {
+      // 这里需要根据实际的作品详情页路径进行修改
+      window.open(`/main/ground/search?uphoto_id=${uphotoId}`, '_blank');
+    };
+
+    // 加载活动评论
+    const loadActivityComments = async (page = 1) => {
+      activityCommentPage.value = page;
+      activityCommentPageInput.value = page;
+      try {
+        const resp = await axios.get('/api/admin/comment/activity', {
+          params: { uid, permission, page, pageSize: 50, keyword: commentSearchKeyword.value }
+        });
+        if (resp.data && resp.data.success) {
+          activityComments.value = resp.data.data || [];
+          activityCommentTotal.value = resp.data.total || 0;
+        }
+      } catch (e) {
+        console.error('加载活动评论失败:', e);
+      }
+    };
+
+    // 加载作品评论
+    const loadUphotoComments = async (page = 1) => {
+      uphotoCommentPage.value = page;
+      uphotoCommentPageInput.value = page;
+      try {
+        const resp = await axios.get('/api/admin/comment/uphoto', {
+          params: { uid, permission, page, pageSize: 50, keyword: commentSearchKeyword.value }
+        });
+        if (resp.data && resp.data.success) {
+          uphotoComments.value = resp.data.data || [];
+          uphotoCommentTotal.value = resp.data.total || 0;
+        }
+      } catch (e) {
+        console.error('加载作品评论失败:', e);
+      }
+    };
+
+    // 删除活动评论
+    const deleteActivityComment = async (commentId) => {
+      if (!confirm('确定要删除这条评论吗？')) return;
+      try {
+        const resp = await axios.post('/api/admin/comment/activity/delete', {
+          id: commentId, uid, permission
+        });
+        if (resp.data && resp.data.success) {
+          alert('评论已删除');
+          loadActivityComments();
+        } else {
+          alert('操作失败');
+        }
+      } catch (e) {
+        alert('操作失败：' + e);
+      }
+    };
+
+    // 删除作品评论
+    const deleteUphotoComment = async (commentId) => {
+      if (!confirm('确定要删除这条评论吗？')) return;
+      try {
+        const resp = await axios.post('/api/admin/comment/uphoto/delete', {
+          id: commentId, uid, permission
+        });
+        if (resp.data && resp.data.success) {
+          alert('评论已删除');
+          loadUphotoComments();
+        } else {
+          alert('操作失败');
+        }
+      } catch (e) {
+        alert('操作失败：' + e);
+      }
+    };
+
+    // 图片清理功能
+    const scanUnusedImages = async () => {
+      scanningImages.value = true;
+      scanned.value = false;
+      try {
+        const resp = await axios.get('/api/admin/image/unused', { params: { uid, permission } });
+        if (resp.data && resp.data.success) {
+          unusedImages.value = resp.data.data || [];
+          scanned.value = true;
+        } else {
+          alert('扫描失败');
+        }
+      } catch (e) {
+        alert('扫描失败：' + e);
+      } finally {
+        scanningImages.value = false;
+      }
+    };
+
+    const confirmCleanup = async () => {
+      if (!confirm(`确定要删除 ${unusedImages.value.length} 张未使用的图片吗？此操作不可恢复！`)) return;
+      try {
+        const resp = await axios.post('/api/admin/image/cleanup-all', { uid, permission });
+        if (resp.data && resp.data.success) {
+          alert(resp.data.message || '清理完成');
+          unusedImages.value = [];
+          scanned.value = false;
+        } else {
+          alert('清理失败');
+        }
+      } catch (e) {
+        alert('清理失败：' + e);
+      }
+    };
+
+    const goMain = () => window.location.href = '/main';
+    const logout = () => { localStorage.clear(); window.location.href = '/user/login'; };
+
+    loadAnnouncement();
+
+    return {
+      uid, tab, announcement, saving, pendingPhotos, pendingActivities, allUsers, permForm,
+      commentSearchKeyword, activityComments, activityCommentTotal, activityCommentPage, activityCommentPageInput,
+      uphotoComments, uphotoCommentTotal, uphotoCommentPage, uphotoCommentPageInput,
+      unusedImages, scanningImages, scanned,
+      photoUrl, coverUrl, catText, permText, permClass,
+      loadPendingPhotos, loadPendingActivities, loadAllUsers,
+      reviewPhoto, reviewActivity, banUser, changePermission,
+      loadActivityComments, loadUphotoComments, deleteActivityComment, deleteUphotoComment,
+      scanUnusedImages, confirmCleanup,
+      goToActivity, goToUphoto,
+      saveAnnouncement, goMain, logout
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

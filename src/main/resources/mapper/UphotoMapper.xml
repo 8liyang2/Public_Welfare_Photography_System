@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.pwps.mapper.UphotoMapper">
+
+    <resultMap id="UphotoResultMap" type="com.example.pwps.entity.Uphoto">
+        <id     column="uphoto_id"              property="upthotoId"/>
+        <result column="uid"                     property="uid"/>
+        <result column="uphoto_path"             property="uphotoPath"/>
+        <result column="uphoto_title"            property="uphotoTitle"/>
+        <result column="uphoto_description"      property="uphotoDescription"/>
+        <result column="activity_id"            property="activityId"/>
+        <result column="uphoto_status"           property="uphotoStatus"/>
+        <result column="uphoto_label_0"         property="uphotoLabel0"/>
+        <result column="uphoto_label_1"         property="uphotoLabel1"/>
+        <result column="uphoto_label_2"         property="uphotoLabel2"/>
+        <result column="uphoto_label_3"         property="uphotoLabel3"/>
+        <result column="uphoto_label_4"         property="uphotoLabel4"/>
+        <result column="uphoto_label_5"         property="uphotoLabel5"/>
+        <result column="uphoto_label_6"         property="uphotoLabel6"/>
+        <result column="uphoto_label_7"         property="uphotoLabel7"/>
+        <result column="uphoto_label_8"         property="uphotoLabel8"/>
+        <result column="uphoto_label_9"         property="uphotoLabel9"/>
+        <result column="uphoto_review_status"   property="uphotoReviewStatus"/>
+        <result column="created_at"             property="createdAt"/>
+    </resultMap>
+
+    <select id="findById" resultMap="UphotoResultMap">
+        SELECT * FROM uphoto WHERE uphoto_id = #{upthoto_id}
+    </select>
+
+    <select id="findByUid" resultMap="UphotoResultMap">
+        SELECT * FROM uphoto WHERE uid = #{uid}
+    </select>
+
+    <select id="findReviewPending" resultMap="UphotoResultMap">
+        SELECT * FROM uphoto WHERE uphoto_review_status = 1 ORDER BY uphoto_id ASC
+    </select>
+
+    <insert id="insert" parameterType="com.example.pwps.entity.Uphoto" useGeneratedKeys="true" keyProperty="upthotoId" keyColumn="uphoto_id">
+        INSERT INTO uphoto (
+            uid, uphoto_path, uphoto_title, uphoto_description, activity_id, uphoto_status,
+            uphoto_label_0, uphoto_label_1, uphoto_label_2, uphoto_label_3, uphoto_label_4,
+            uphoto_label_5, uphoto_label_6, uphoto_label_7, uphoto_label_8, uphoto_label_9,
+            uphoto_review_status, created_at
+        ) VALUES (
+            #{uid}, #{uphotoPath}, #{uphotoTitle}, #{uphotoDescription}, #{activityId}, #{uphotoStatus},
+            #{uphotoLabel0}, #{uphotoLabel1}, #{uphotoLabel2}, #{uphotoLabel3}, #{uphotoLabel4},
+            #{uphotoLabel5}, #{uphotoLabel6}, #{uphotoLabel7}, #{uphotoLabel8}, #{uphotoLabel9},
+            #{uphotoReviewStatus}, NOW()
+        )
+    </insert>
+
+    <update id="update" parameterType="com.example.pwps.entity.Uphoto">
+        UPDATE uphoto
+        SET uphoto_path = #{uphotoPath},
+            uphoto_title = #{uphotoTitle},
+            uphoto_description = #{uphotoDescription},
+            uphoto_status = #{uphotoStatus},
+            uphoto_label_0 = #{uphotoLabel0},
+            uphoto_label_1 = #{uphotoLabel1},
+            uphoto_label_2 = #{uphotoLabel2},
+            uphoto_label_3 = #{uphotoLabel3},
+            uphoto_label_4 = #{uphotoLabel4},
+            uphoto_label_5 = #{uphotoLabel5},
+            uphoto_label_6 = #{uphotoLabel6},
+            uphoto_label_7 = #{uphotoLabel7},
+            uphoto_label_8 = #{uphotoLabel8},
+            uphoto_label_9 = #{uphotoLabel9},
+            uphoto_review_status = #{uphotoReviewStatus}
+        WHERE uphoto_id = #{upthotoId}
+    </update>
+
+    <update id="updateReviewStatus">
+        UPDATE uphoto SET uphoto_review_status = #{uphoto_review_status} WHERE uphoto_id = #{upthoto_id}
+    </update>
+
+    <select id="findByActivityId" resultMap="UphotoResultMap">
+        SELECT * FROM uphoto WHERE activity_id LIKE CONCAT('%', #{activity_id}, '%') AND uphoto_review_status = 2
+    </select>
+
+    <select id="findPublicPhotos" resultMap="UphotoResultMap">
+        SELECT * FROM uphoto WHERE uphoto_status = 1 AND uphoto_review_status = 2 ORDER BY created_at DESC
+    </select>
+
+    <select id="findPublicPhotosByLabel" resultMap="UphotoResultMap">
+        SELECT * FROM uphoto 
+        WHERE uphoto_status = 1 AND uphoto_review_status = 2 
+        AND CASE #{label_index} 
+            WHEN 0 THEN uphoto_label_0 = #{label_value}
+            WHEN 1 THEN uphoto_label_1 = #{label_value}
+            WHEN 2 THEN uphoto_label_2 = #{label_value}
+            WHEN 3 THEN uphoto_label_3 = #{label_value}
+            WHEN 4 THEN uphoto_label_4 = #{label_value}
+            WHEN 5 THEN uphoto_label_5 = #{label_value}
+            WHEN 6 THEN uphoto_label_6 = #{label_value}
+            WHEN 7 THEN uphoto_label_7 = #{label_value}
+            WHEN 8 THEN uphoto_label_8 = #{label_value}
+            WHEN 9 THEN uphoto_label_9 = #{label_value}
+        END
+        ORDER BY created_at DESC
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM uphoto WHERE uphoto_id = #{upthoto_id}
+    </delete>
+
+    <select id="countByUid" resultType="int">
+        SELECT COUNT(*) FROM uphoto WHERE uid = #{uid}
+    </select>
+
+    <select id="findAll" resultMap="UphotoResultMap">
+        SELECT * FROM uphoto
+    </select>
+
+</mapper>

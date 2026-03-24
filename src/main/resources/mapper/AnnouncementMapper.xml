@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.pwps.mapper.AnnouncementMapper">
+
+    <resultMap id="AnnouncementResultMap" type="com.example.pwps.entity.Announcement">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <select id="findActive" resultMap="AnnouncementResultMap">
+        SELECT * FROM announcement WHERE status = 1 ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultMap="AnnouncementResultMap">
+        SELECT * FROM announcement WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.example.pwps.entity.Announcement" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO announcement (title, content, status)
+        VALUES (#{title}, #{content}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.example.pwps.entity.Announcement">
+        UPDATE announcement
+        SET title = #{title}, content = #{content}, status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM announcement WHERE id = #{id}
+    </delete>
+
+</mapper>

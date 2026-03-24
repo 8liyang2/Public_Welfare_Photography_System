@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>活动列表 - 公益摄影交流平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1220; color:#e5e7eb; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:#0f172a; border-bottom:1px solid rgba(255,255,255,.08); position:sticky; top:0; z-index:10; }
+    .logo { font-weight:800; cursor:pointer; color:#fff; }
+    .nav { display:flex; gap:12px; align-items:center; }
+    .btn { padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); color:#fff; cursor:pointer; font-size:14px; }
+    .btn.primary { background:#3b82f6; border:none; }
+    .profile { display:flex; align-items:center; gap:10px; cursor:pointer; }
+    .avatar { width:34px; height:34px; border-radius:12px; background:rgba(255,255,255,.1); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .avatar img { width:100%; height:100%; object-fit:cover; }
+    .container { max-width:1100px; margin:18px auto; padding:0 18px; display:grid; grid-template-columns: 260px 1fr; gap:18px; }
+    .card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; }
+    .muted { opacity:.8; font-size: 13px; }
+    .field { margin-bottom:10px; font-size:13px; }
+    .field label { display:block; margin-bottom:4px; }
+    .field input, .field select { width:100%; padding:6px 8px; border-radius:10px; border:none; font-size:13px; }    input[type="date"] { cursor: pointer; color-scheme: dark; }    input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+    .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .tag { padding:2px 6px; border-radius:999px; font-size:11px; border:1px solid rgba(148,163,184,.5); }
+    .list { list-style:none; margin:0; padding:0; }
+    .item { display:flex; gap:12px; padding:10px 8px; border-radius:12px; cursor:pointer; }
+    .item:hover { background:rgba(15,23,42,.85); }
+    .cover { width:80px; height:56px; border-radius:10px; overflow:hidden; background:rgba(15,23,42,1); display:flex; align-items:center; justify-content:center; font-size:12px; color:#64748b; }
+    .cover img { width:100%; height:100%; object-fit:cover; }
+    .badge { display:inline-block; padding:2px 6px; border-radius:999px; font-size:11px; margin-right:6px; }
+    .badge.cat1 { background:rgba(59,130,246,.15); color:#bfdbfe; }
+    .badge.cat2 { background:rgba(16,185,129,.15); color:#bbf7d0; }
+    .badge.cat3 { background:rgba(234,179,8,.15); color:#facc15; }
+    .badge.status0 { border:1px solid #64748b; color:#e5e7eb; }
+    .badge.status1 { border:1px solid #22c55e; color:#bbf7d0; }
+    .badge.status2 { border:1px solid #f97316; color:#fed7aa; }
+    .empty { padding:16px 8px; font-size:14px; color:#9ca3af; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="logo" @click="goMain">公益摄影交流平台</div>
+    <div class="nav">
+      <button class="btn" @click="goGround">广场</button>
+      <button class="btn primary">活动</button>
+      <button class="btn" @click="logout">退出登录</button>
+    </div>
+    <div class="profile" @click="goProfile">
+      <div class="avatar">
+        <span v-if="!avatarUrl">?</span>
+        <img v-else :src="avatarUrl" alt="avatar" />
+      </div>
+      <div>
+        <div style="font-weight:700">{{ displayName }}</div>
+        <div class="muted">permission={{ permissionText }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h3 style="margin:0 0 6px 0;">筛选条件</h3>
+      <div class="muted">对应接口：GET /api/main/activity/search（支持游客 uid=0 浏览）</div>
+
+      <div class="field" style="margin-top:10px;">
+        <label>排序方式</label>
+        <select v-model="mode">
+          <option value="new">最新活动优先</option>
+          <option value="like">作品数/热度优先</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>开始日期（可选）</label>
+        <div class="date-input-wrapper" style="position: relative;" @click="() => $event.currentTarget.querySelector('input').click()">
+          <input v-model="early" type="date" style="width: 100%; padding: 6px 8px; border-radius: 10px; border: none; font-size: 13px; cursor: pointer;" />
+          <style>
+            input[type="date"]::-webkit-calendar-picker-indicator {
+              cursor: pointer;
+              background: transparent;
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              width: 100%;
+              height: 100%;
+            }
+          </style>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>结束日期（可选）</label>
+        <div class="date-input-wrapper" style="position: relative;" @click="() => $event.currentTarget.querySelector('input').click()">
+          <input v-model="late" type="date" style="width: 100%; padding: 6px 8px; border-radius: 10px; border: none; font-size: 13px; cursor: pointer;" />
+        </div>
+      </div>
+
+      <button class="btn primary" style="width:100%; margin-top:4px;" @click="search">搜索活动</button>
+
+      <div class="muted" style="margin-top:10px;">
+        若不填写日期，则默认按照最新活动排序。日期区间会被编码为 EyyyymmddLyyyymmdd 传给后端。
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 6px 0;">活动列表</h3>
+      <div class="muted">点击任一活动可进入详情页 `/main/activity/{activity_id}`。</div>
+
+      <ul class="list" v-if="items.length">
+        <li v-for="it in items" :key="it.activity_id" class="item" @click="goDetail(it.activity_id)">
+          <div class="cover">
+            <img v-if="it.activity_cover_image" :src="coverUrl(it.activity_cover_image)" alt="cover" />
+            <span v-else>无封面</span>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              {{ it.activity_name }}
+            </div>
+            <div style="margin-top:4px;">
+              <span class="badge" :class="catClass(it.activity_category)">{{ catText(it.activity_category) }}</span>
+              <span class="badge" :class="statusClass(it.activity_status)">{{ statusText(it.activity_status) }}</span>
+            </div>
+            <div class="muted" style="margin-top:4px; font-size:12px;">
+              <span v-if="it.activity_time_early && it.activity_time_end">
+                {{ formatDate(it.activity_time_early) }} 至 {{ formatDate(it.activity_time_end) }}
+              </span>
+              <span v-else class="muted">时间未设置</span>
+            </div>
+            <div class="muted" style="margin-top:2px; font-size:12px;">
+              发起人：{{ it.username || ('用户' + (it.uid || '0')) }}
+            </div>
+          </div>
+        </li>
+      </ul>
+      <div v-else class="empty">暂无活动数据，可点击左侧“搜索活动”重新加载。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, computed, ref } = Vue;
+
+createApp({
+  setup() {
+    const uid = Number(localStorage.getItem('pwps_uid') || 0);
+    const permission = Number(localStorage.getItem('pwps_permission') || 2);
+    const loginname = localStorage.getItem('pwps_loginname') || '';
+    const avatarPath = localStorage.getItem('pwps_avatar') || '';
+
+    const displayName = computed(() => uid ? (loginname || ('用户' + uid)) : '游客模式');
+    const permissionText = computed(() => permission === 0 ? '管理员' : (permission === 1 ? '普通用户' : '游客'));
+    const avatarUrl = computed(() => avatarPath ? ('/' + avatarPath.replace(/^\/+/, '')) : '');
+
+    const mode = ref('new');
+    const early = ref('');
+    const late = ref('');
+    const items = ref([]);
+
+    const fmtDate = (d) => {
+      const s = d.replace(/-/g, '');
+      return s.length === 8 ? s : '';
+    };
+
+    const buildUrl = () => {
+      const qs = [];
+      // uid 必须参数
+      qs.push('uid=' + uid);
+      // 排序模式：latest / hottest
+      qs.push('sort=' + (mode.value === 'like' ? 'hottest' : 'latest'));
+      // 开始日期
+      if (early.value) {
+        qs.push('start_date=' + early.value);
+      }
+      // 结束日期
+      if (late.value) {
+        qs.push('end_date=' + late.value);
+      }
+      const q = qs.length ? ('?' + qs.join('&')) : '';
+      return '/api/main/activity/search' + q;
+    };
+
+    const search = async () => {
+      try {
+        // 验证日期是否合法
+        if (early.value && late.value) {
+          const startDate = new Date(early.value);
+          const endDate = new Date(late.value);
+          if (endDate < startDate) {
+            alert('结束日期不能早于开始日期');
+            return;
+          }
+        }
+        const url = buildUrl();
+        const resp = await axios.get(url);
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          items.value = resp.data.data;
+        } else {
+          items.value = [];
+          alert('未获取到活动数据');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('请求失败：' + e);
+      }
+    };
+
+    const coverUrl = (path) => {
+      if (!path) return '';
+      // 若后端直接返回 picture/** 相对路径，则前面补一个 /
+      return '/' + String(path).replace(/^\/+/, '');
+    };
+
+    const catText = (c) => {
+      if (c === 1) return '官方摄影征集活动';
+      if (c === 2) return '个人组织摄影活动';
+      if (c === 3) return '相册集';
+      return '未知类型';
+    };
+
+    const catClass = (c) => {
+      if (c === 1) return 'badge cat1';
+      if (c === 2) return 'badge cat2';
+      if (c === 3) return 'badge cat3';
+      return 'badge';
+    };
+
+    const statusText = (s) => {
+      if (s === 0) return '仅自己可见';
+      if (s === 1) return '公开征集';
+      if (s === 2) return '仅读';
+      return '未知状态';
+    };
+
+    const statusClass = (s) => {
+      if (s === 0) return 'badge status0';
+      if (s === 1) return 'badge status1';
+      if (s === 2) return 'badge status2';
+      return 'badge';
+    };
+
+    const formatDate = (d) => {
+      try {
+        const dt = new Date(d);
+        if (Number.isNaN(dt.getTime())) return String(d);
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      } catch {
+        return String(d);
+      }
+    };
+
+    const goMain = () => window.location.href = '/main';
+    const goGround = () => window.location.href = '/main/ground/search/s0';
+    const goDetail = (id) => window.location.href = '/main/activity/' + id;
+
+    const goProfile = () => {
+      if (!uid) { window.location.href = '/user/login'; return; }
+      if (permission === 0) window.location.href = `/main/admin/edit/${uid}`;
+      else window.location.href = `/main/user/edit/${uid}`;
+    };
+
+    const logout = () => {
+      localStorage.removeItem('pwps_uid');
+      localStorage.removeItem('pwps_permission');
+      localStorage.removeItem('pwps_loginname');
+      localStorage.removeItem('pwps_avatar');
+      window.location.href = '/user/login';
+    };
+
+    // 进入页面默认拉一次“最新活动”
+    search();
+
+    return {
+      displayName,
+      permissionText,
+      avatarUrl,
+      mode,
+      early,
+      late,
+      items,
+      search,
+      catText,
+      catClass,
+      statusText,
+      statusClass,
+      coverUrl,
+      formatDate,
+      goMain,
+      goGround,
+      goDetail,
+      goProfile,
+      logout
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
+

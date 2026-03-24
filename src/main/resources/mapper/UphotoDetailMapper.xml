@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.pwps.mapper.UphotoDetailMapper">
+    <resultMap id="UphotoDetailResult" type="com.example.pwps.entity.UphotoDetail">
+        <id column="id" property="id"/>
+        <result column="uphoto_id" property="upthotoId"/>
+        <result column="uid" property="uid"/>
+        <result column="uphoto_like" property="uphotoLike"/>
+        <result column="uphoto_comment" property="uphotoComment"/>
+        <result column="uphoto_comment_detail" property="uphotoCommentDetail"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.pwps.entity.UphotoDetail">
+        INSERT INTO uphoto_detail (uphoto_id, uid, uphoto_like, uphoto_comment, uphoto_comment_detail, created_at)
+        VALUES (#{upthotoId}, #{uid}, #{uphotoLike}, #{uphotoComment}, #{uphotoCommentDetail}, #{createdAt})
+        ON DUPLICATE KEY UPDATE
+            uphoto_like = #{uphotoLike},
+            uphoto_comment = #{uphotoComment},
+            uphoto_comment_detail = #{uphotoCommentDetail},
+            created_at = IF(VALUES(uphoto_comment) = 1, VALUES(created_at), created_at)
+    </insert>
+
+    <update id="update" parameterType="com.example.pwps.entity.UphotoDetail">
+        UPDATE uphoto_detail
+        SET uphoto_like = #{uphotoLike},
+            uphoto_comment = #{uphotoComment},
+            uphoto_comment_detail = #{uphotoCommentDetail},
+            created_at = IF(#{uphotoComment} = 1, #{createdAt}, created_at)
+        WHERE uphoto_id = #{upthotoId} AND uid = #{uid}
+    </update>
+
+    <select id="findByUphotoIdAndUid" resultMap="UphotoDetailResult">
+        SELECT * FROM uphoto_detail
+        WHERE uphoto_id = #{upthotoId} AND uid = #{uid}
+    </select>
+
+    <select id="findCommentsByUphotoId" resultMap="UphotoDetailResult">
+        SELECT * FROM uphoto_detail
+        WHERE uphoto_id = #{upthotoId} AND uphoto_comment = 1
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findAllComments" resultMap="UphotoDetailResult">
+        SELECT * FROM uphoto_detail
+        WHERE uphoto_comment = 1
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="searchComments" resultMap="UphotoDetailResult">
+        SELECT * FROM uphoto_detail
+        WHERE uphoto_comment = 1 AND uphoto_comment_detail LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countAllComments" resultType="int">
+        SELECT COUNT(*) FROM uphoto_detail
+        WHERE uphoto_comment = 1
+    </select>
+
+    <select id="countSearchComments" resultType="int">
+        SELECT COUNT(*) FROM uphoto_detail
+        WHERE uphoto_comment = 1 AND uphoto_comment_detail LIKE CONCAT('%', #{keyword}, '%')
+    </select>
+
+    <select id="countLikesByUphotoId" resultType="int">
+        SELECT COUNT(*) FROM uphoto_detail
+        WHERE uphoto_id = #{upthotoId} AND uphoto_like = 1
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM uphoto_detail WHERE id = #{id}
+    </delete>
+</mapper>

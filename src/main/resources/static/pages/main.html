@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>主页 - 公益摄影交流平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1220; color:#e5e7eb; }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:#0f172a; border-bottom:1px solid rgba(255,255,255,.08); position:sticky; top:0; z-index:10; }
+    .logo { font-weight:800; cursor:pointer; color:#fff; }
+    .nav { display:flex; gap:12px; align-items:center; }
+    .btn { padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); color:#fff; cursor:pointer; font-size:14px; }
+    .btn.primary { background:#3b82f6; border:none; }
+    .profile { display:flex; align-items:center; gap:10px; cursor:pointer; }
+    .avatar { width:34px; height:34px; border-radius:12px; background:rgba(255,255,255,.1); overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .avatar img { width:100%; height:100%; object-fit:cover; }
+    .container { max-width:1200px; margin:18px auto; padding:0 18px; }
+    .card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:16px; margin-bottom:18px; }
+    .muted { opacity:.8; font-size:13px; }
+    .section-title { font-size:18px; font-weight:700; margin:0 0 12px 0; display:flex; justify-content:space-between; align-items:center; }
+    .section-title a { font-size:14px; font-weight:400; }
+    a { color:#93c5fd; text-decoration:none; }
+    .announcement-item { padding:12px; border-radius:10px; background:rgba(255,255,255,.02); margin-bottom:8px; cursor:pointer; }
+    .announcement-item:hover { background:rgba(255,255,255,.05); }
+    .announcement-title { font-weight:600; margin-bottom:4px; }
+    .announcement-content { white-space:pre-wrap; max-height:60px; overflow:hidden; }
+    .activity-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; }
+    .activity-item { background:rgba(255,255,255,.02); border-radius:12px; overflow:hidden; cursor:pointer; transition:transform 0.2s; }
+    .activity-item:hover { transform:translateY(-3px); }
+    .activity-cover { width:100%; padding-top:60%; position:relative; background:radial-gradient(circle at top, #1f2937, #020617); }
+    .activity-cover img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    .activity-info { padding:10px; }
+    .activity-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .activity-stats { font-size:11px; opacity:.7; margin-top:4px; }
+    .photo-grid { display:grid; grid-template-columns:repeat(9, 1fr); gap:10px; }
+    .photo-item { aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer; background:radial-gradient(circle at top, #1f2937, #020617); }
+    .photo-item img { width:100%; height:100%; object-fit:cover; }
+    .photo-item:hover { opacity:0.9; }
+    @media (max-width:900px) {
+      .activity-grid { grid-template-columns:repeat(3, 1fr); }
+      .photo-grid { grid-template-columns:repeat(5, 1fr); }
+    }
+    @media (max-width:600px) {
+      .activity-grid { grid-template-columns:repeat(2, 1fr); }
+      .photo-grid { grid-template-columns:repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="logo" @click="goMain">公益摄影交流平台</div>
+    <div class="nav">
+      <button class="btn" @click="goGround">广场</button>
+      <button class="btn primary" @click="goActivity">活动</button>
+      <button class="btn" @click="goAnnouncements">公告</button>
+      <button class="btn" @click="logout">退出登录</button>
+    </div>
+    <div class="profile" @click="goProfile">
+      <div class="avatar">
+        <span v-if="!avatarUrl">?</span>
+        <img v-else :src="avatarUrl" alt="avatar" />
+      </div>
+      <div>
+        <div style="font-weight:700">{{ displayName }}</div>
+        <div class="muted">{{ permissionText }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="section-title">
+        <span>最新公告</span>
+        <a href="/main/announcement">查看全部</a>
+      </div>
+      <div v-if="announcements.length === 0" class="muted" style="text-align:center; padding:20px 0;">暂无公告</div>
+      <div v-else>
+        <div v-for="a in announcements" :key="a.id" class="announcement-item" @click="goAnnouncementDetail(a.id)">
+          <div class="announcement-title">{{ a.title }}</div>
+          <div class="muted announcement-content">{{ a.content }}</div>
+          <div class="muted" style="margin-top:6px; font-size:12px;">{{ formatDate(a.created_at) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <span>热门活动</span>
+        <a href="/main/activity/search">查看全部</a>
+      </div>
+      <div v-if="activities.length === 0" class="muted" style="text-align:center; padding:20px 0;">暂无活动</div>
+      <div v-else class="activity-grid">
+        <div v-for="a in activities" :key="a.activity_id" class="activity-item" @click="goActivityDetail(a.activity_id)">
+          <div class="activity-cover">
+            <img v-if="a.activity_cover_image" :src="coverUrl(a.activity_cover_image)" alt="cover" />
+          </div>
+          <div class="activity-info">
+            <div class="activity-name">{{ a.activity_name }}</div>
+            <div class="activity-stats">❤️ {{ a.activity_like_number || 0 }} · 💬 {{ a.activity_comment_number || 0 }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <span>最新作品</span>
+        <a href="/main/ground/search/s0">查看全部</a>
+      </div>
+      <div v-if="photos.length === 0" class="muted" style="text-align:center; padding:20px 0;">暂无作品</div>
+      <div v-else class="photo-grid">
+        <div v-for="p in photos" :key="p.upthoto_id" class="photo-item" @click="goPhotoDetail(p.upthoto_id)">
+          <img :src="coverUrl(p.uphoto)" alt="photo" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <span>快速入口</span>
+      </div>
+      <ul class="list" style="margin:0; padding:0; list-style:none;">
+        <li v-if="uid" style="padding:8px 0;">
+          <a :href="`/main/user/${uid}/display`" style="display:block; padding:8px; border-radius:8px; background:rgba(255,255,255,.02);">个人主页展示</a>
+        </li>
+        <li v-if="uid && permission === 1" style="padding:8px 0;">
+          <a :href="`/main/user/edit/${uid}`" style="display:block; padding:8px; border-radius:8px; background:rgba(255,255,255,.02);">用户设置</a>
+        </li>
+        <li v-if="uid && permission === 0" style="padding:8px 0;">
+          <a :href="`/main/admin/edit/${uid}`" style="display:block; padding:8px; border-radius:8px; background:rgba(255,255,255,.02);">管理员菜单</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, computed, ref, onMounted } = Vue;
+
+createApp({
+  setup() {
+    const uid = Number(localStorage.getItem('pwps_uid') || 0);
+    const permission = Number(localStorage.getItem('pwps_permission') || 2);
+    const loginname = localStorage.getItem('pwps_loginname') || '';
+
+    const displayName = computed(() => uid ? (loginname || ('用户' + uid)) : '请先登录');
+    const permissionText = computed(() => permission === 0 ? '管理员' : (permission === 1 ? '普通用户' : '游客'));
+
+    const avatarPath = localStorage.getItem('pwps_avatar') || '';
+    const avatarUrl = computed(() => avatarPath ? ('/' + avatarPath.replace(/^\/+/, '')) : '');
+
+    const announcements = ref([]);
+    const activities = ref([]);
+    const photos = ref([]);
+
+    const coverUrl = (path) => '/' + String(path || '').replace(/^\/+/, '');
+
+    const formatDate = (d) => {
+      try {
+        const dt = new Date(d);
+        if (Number.isNaN(dt.getTime())) return '';
+        return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      } catch { return ''; }
+    };
+
+    const loadAnnouncements = async () => {
+      try {
+        const resp = await axios.get('/api/main/announcement/list');
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          announcements.value = resp.data.data.slice(0, 3);
+        }
+      } catch (e) {
+        console.error('加载公告失败:', e);
+      }
+    };
+
+    const loadActivities = async () => {
+      try {
+        const resp = await axios.get(`/api/main/activity/search?uid=${uid}&sort=hottest`);
+        if (resp.data && resp.data.success && Array.isArray(resp.data.activities)) {
+          const now = new Date();
+          const activeActivities = resp.data.activities.filter(a => {
+            if (!a.activity_time_early || !a.activity_time_end) return false;
+            const start = new Date(a.activity_time_early);
+            const end = new Date(a.activity_time_end);
+            return now >= start && now <= end;
+          });
+          activities.value = activeActivities.slice(0, 5);
+        }
+      } catch (e) {
+        console.error('加载活动失败:', e);
+      }
+    };
+
+    const loadPhotos = async () => {
+      try {
+        const resp = await axios.post('/api/main/uphoto/search', { uid: uid || 0 });
+        if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+          photos.value = resp.data.data.slice(0, 9);
+        }
+      } catch (e) {
+        console.error('加载作品失败:', e);
+      }
+    };
+
+    onMounted(() => {
+      loadAnnouncements();
+      loadActivities();
+      loadPhotos();
+    });
+
+    const goMain = () => window.location.href = '/main';
+    const goGround = () => window.location.href = '/main/ground/search/s0';
+    const goActivity = () => window.location.href = '/main/activity/search';
+    const goAnnouncements = () => window.location.href = '/main/announcement';
+    const goAnnouncementDetail = (id) => window.location.href = '/main/announcement';
+    const goActivityDetail = (id) => window.location.href = `/main/activity/${id}`;
+    const goPhotoDetail = (id) => window.location.href = `/main/uphoto/${id}`;
+
+    const goProfile = () => {
+      if (!uid) { window.location.href = '/user/login'; return; }
+      if (permission === 0) window.location.href = `/main/admin/edit/${uid}`;
+      else window.location.href = `/main/user/edit/${uid}`;
+    };
+
+    const logout = () => {
+      localStorage.removeItem('pwps_uid');
+      localStorage.removeItem('pwps_permission');
+      localStorage.removeItem('pwps_loginname');
+      localStorage.removeItem('pwps_avatar');
+      window.location.href = '/user/login';
+    };
+
+    return { 
+      uid, displayName, permissionText, avatarUrl, 
+      announcements, activities, photos,
+      coverUrl, formatDate,
+      goMain, goGround, goActivity, goAnnouncements, goAnnouncementDetail, goActivityDetail, goPhotoDetail, goProfile, logout 
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

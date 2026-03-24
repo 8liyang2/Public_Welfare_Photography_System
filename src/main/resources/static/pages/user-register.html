@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>注册 - 公益摄影交流平台</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <style>
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: linear-gradient(135deg,#0f172a,#064e3b); color:#fff; }
+    .top { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; }
+    .logo { font-weight:800; cursor:pointer; }
+    .wrap { max-width: 520px; margin: 40px auto; padding: 24px; background: rgba(255,255,255,.06); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    label { display:block; font-size: 14px; margin: 14px 0; }
+    input { width:100%; padding: 10px 12px; border-radius: 10px; border: none; margin-top: 6px; }
+    button { width:100%; padding: 10px 12px; border-radius: 10px; border:none; background:#10b981; color:#fff; font-weight:700; cursor:pointer; margin-top: 10px; }
+    .btn2 { background:#111827; border:1px solid rgba(255,255,255,.18); }
+    .row { display:flex; gap:12px; margin-top: 12px; }
+    .hint { opacity:.85; font-size: 13px; margin-top: 8px; }
+    .file { display:flex; gap:12px; align-items:center; }
+    .preview { width:56px; height:56px; border-radius: 12px; background: rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .preview img { width:100%; height:100%; object-fit:cover; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="logo" @click="goMain">公益摄影交流平台</div>
+    <div style="opacity:.85">注册成功后回到登录</div>
+  </div>
+
+  <div class="wrap">
+    <h2 style="margin:0 0 8px 0;">注册</h2>
+    <div class="hint">接口：POST /api/user/register（avatar 支持 Base64，后端会落盘到 src/main/picture/avatar）</div>
+
+    <label>
+      账号（loginname）
+      <input v-model="form.loginname" maxlength="20" placeholder="请输入账号" />
+    </label>
+    <label>
+      密码（password）
+      <input v-model="form.password" type="password" placeholder="请输入密码" />
+    </label>
+    <label>
+      再次输入密码（password1）
+      <input v-model="form.password1" type="password" placeholder="请再次输入密码" />
+    </label>
+
+    <label>
+      头像（可选，自动转 Base64）
+      <div class="file">
+        <input type="file" accept="image/*" @change="pickAvatar" />
+        <div class="preview">
+          <span v-if="!form.avatar">无</span>
+          <img v-else :src="form.avatar" alt="avatar preview" />
+        </div>
+      </div>
+    </label>
+
+    <button @click="register">注册</button>
+
+    <div class="row">
+      <button class="btn2" @click="goLogin">返回登录</button>
+      <button class="btn2" @click="goMain">进入主页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, reactive } = Vue;
+
+createApp({
+  setup() {
+    const form = reactive({ loginname: '', password: '', password1: '', avatar: '' });
+
+    const pickAvatar = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { form.avatar = reader.result; };
+      reader.readAsDataURL(file);
+    };
+
+    const register = async () => {
+      try {
+        const resp = await axios.post('/api/user/register', {
+          loginname: form.loginname,
+          password: form.password,
+          password1: form.password1,
+          avatar: form.avatar || null
+        });
+        const data = resp.data;
+        if (data && data.success) {
+          alert('注册成功，user_id=' + data.user_id);
+          window.location.href = '/user/login';
+          return;
+        }
+        if (data && data.loginname_exists === 1) {
+          alert('注册失败：用户名已存在');
+          return;
+        }
+        if (data && data.password_exists === 0) {
+          alert('注册失败：两次密码不一致');
+          return;
+        }
+        alert('注册失败');
+      } catch (e) {
+        alert('请求失败：' + e);
+      }
+    };
+
+    const goLogin = () => window.location.href = '/user/login';
+    const goMain = () => window.location.href = '/main';
+
+    return { form, pickAvatar, register, goLogin, goMain };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
+
