@@ -86,7 +86,7 @@ public UserLoginResponse login(UserLoginRequest request) {
 
 **代码解释**:
 - **用户查询**: 使用登录名作为唯一标识查找用户
-- **安全比对**: 不直接比对明文密码，而是比对 MD5 哈希值
+- **密码加密**: 密码将会以MD5加密格式保存至数据库
 - **权限返回**: 将用户权限（0=管理员，1=普通用户，2=游客）返回给前端
 
 ### 3. MD5 加密工具
@@ -159,8 +159,8 @@ public UphotoUploadResponse upload(UphotoUploadRequest request) {
 ```
 
 **代码解释**:
-- **积分机制**: 上传作品可能消耗或获得积分，先检查余额是否足够
-- **标签限制**: 每个作品最多选择 3 个标签，防止标签过多
+- **积分机制**: 上传作品可能消耗或获得积分，先检查积分是否足够
+- **标签限制**: 每个作品最多选择 3 个标签
 - **时间戳命名**: 使用 `System.currentTimeMillis()` 生成唯一文件名，避免冲突
 - **审核流程**: 新作品默认状态为 1（待审核），需管理员审核后才能公开
 - **原子操作**: 作品创建和积分更新在同一事务中执行
@@ -465,29 +465,5 @@ public interface UserMapper {
 - **结果映射**: `resultMap` 将数据库列名映射到 Java 实体属性
 - **自增主键**: `useGeneratedKeys="true"` 自动获取数据库生成的主键
 - **原子更新**: `point = point + #{pointChange}` 在数据库层面完成，避免并发问题
-
-### 3. 下划线转驼峰配置
-
-**application.properties**:
-```properties
-mybatis.configuration.map-underscore-to-camel-case=true
-```
-
-**代码解释**:
-- 自动将数据库列名 `activity_cover_image` 转换为 Java 属性名 `activityCoverImage`
-- 避免手动写大量 `resultMap` 配置
-
----
-
-## 总结
-
-本项目采用经典的 **Controller → Service → Mapper** 三层架构：
-
-1. **Controller 层**: 接收 HTTP 请求，参数校验，调用 Service
-2. **Service 层**: 业务逻辑实现，事务管理，多表协作
-3. **Mapper 层**: 纯数据库操作，通过 MyBatis 实现
-
-核心设计模式：
-- **DTO 模式**: 使用专门的数据传输对象隔离前后端
 - **工具类**: MD5、图片存储等通用功能封装为静态工具类
 - **权限分级**: 三级权限体系（0=管理员，1=普通用户，2=游客）
