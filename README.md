@@ -1,4 +1,4 @@
-# PWPS 功能实现方法详解
+# Public_Welfare_Photography_System（PWPS） 基本实现方法
 
 ## 目录
 1. [用户认证模块](#用户认证模块)
